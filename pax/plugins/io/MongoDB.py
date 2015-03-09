@@ -329,8 +329,6 @@ class MongoDBFakeDAQOutput(plugin.OutputPlugin):
 class MongoDBInputTriggered(plugin.InputPlugin):
 
     """Read triggered data produced by kodiaq with MongoDB output
-
-    This must be run after the data aquisition is finished.
     """
 
     def startup(self):
@@ -351,37 +349,52 @@ class MongoDBInputTriggered(plugin.InputPlugin):
 
         self.last_pulse_time = None
         self.current_event = None
+        self.event_number = -1
 
-        self.mongo_time_unit = self.config.get('mongo_time_unit',
-                                               10 * units.ns)
+        self.mongo_time_unit = int(self.config['mongo_time_unit'])
 
     def total_number_events(self):
         return self.number_of_events
 
     def get_events(self):
+        self.ts = time.time()
         for pulse_doc in self.cursor:
 
-            pulse_time = pulse_doc['time']
-            pulse_data = pulse_doc['data']
+            pulse_time = pulse_doc['time'] * self.mongo_time_unit
+            pulse_data = snappy.decompress(pulse_doc['data'])
+            pulse_data = np.fromstring(pulse_data, dtype="<i2")
+            channel = pulse_doc['channel']
 
             if pulse_time != self.last_pulse_time:
-
                 # Yield current event, if there is one
                 if self.current_event is not None:
+
+                    self.total_time_taken += (time.time() - self.ts) * 1000
                     yield self.current_event
+                    self.ts = time.time()       # Restart clock
 
                 # Prepare new event
+                self.event_number += 1
                 self.current_event = Event(n_channels=self.config['n_channels'],
-                                           start_time=pulse_time * self.mongo_time_unit,
+                                           start_time=pulse_time,
                                            sample_duration=self.config['sample_duration'],
+                                           event_number=self.event_number,
                                            # Samples are stored as 16 bit numbers (i.e. 2 bytes).  Also
                                            # note that // is an integer divide.
-                                           stop_time=pulse_time + len(pulse_data) // 2)
+                                           stop_time=pulse_time + len(pulse_data) * self.config['sample_duration'])
 
-            # Add another occ to existing event
+                self.log.debug("Started new event at %s, end at %s" % (
+                    self.current_event.start_time,
+                    self.current_event.stop_time))
+
+            self.log.debug("Adding pulse at %d from channel %d" % (pulse_time, channel))
+
+            # Add another pulse to existing event
             self.current_event.occurrences.append(Occurrence(left=0,
-                                                             raw_data=np.fromstring(pulse_data,
-                                                                                    dtype="<i2"),
-                                                             channel=pulse_doc['channel']))
+                                                             raw_data=pulse_data,
+                                                             channel=channel))
 
             self.last_pulse_time = pulse_time
+
+    def shutdown(self):
+        del self.cursor
