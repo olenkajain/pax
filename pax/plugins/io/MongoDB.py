@@ -344,54 +344,44 @@ class MongoDBInputTriggered(plugin.InputPlugin):
             self.log.exception(e)
             raise
 
-        # All of the channel pulses (/occurences) will have the same
-        # time if they came from the same trigger.
-        self.trigger_times = self.collection.distinct('time')
-        self.number_of_events = len(self.trigger_times)
-
-        self.mongo_time_unit = int(self.config.get('mongo_time_unit',
-                                                   10 * units.ns))
-
+        self.cursor = self.collection.find()
+        self.number_of_events = self.cursor.count()
         if self.number_of_events == 0:
-            raise RuntimeError(
-                "No events found... did you run the event builder?")
+            raise RuntimeError("No events found... easy day for me!")
+
+        self.last_pulse_time = None
+        self.current_event = None
+
+        self.mongo_time_unit = self.config.get('mongo_time_unit',
+                                               10 * units.ns)
 
     def total_number_events(self):
         return self.number_of_events
 
     def get_events(self):
-        for i, trigger_time in enumerate(self.trigger_times):
-            cursor = self.collection.find({'time': trigger_time})
-            self.log.debug("Found %d occurrences",
-                           cursor.count())
+        for pulse_doc in self.cursor:
 
-            latest_time = []
-            occurrence_objects = []
+            pulse_time = pulse_doc['time']
+            pulse_data = pulse_doc['data']
 
-            for j, occurrence_doc in enumerate(cursor):
-                self.log.debug("Fetching document %s" %
-                               repr(occurrence_doc['_id']))
+            if pulse_time != self.last_pulse_time:
 
-                # Fetch raw data from document
-                data = occurrence_doc["data"]
+                # Yield current event, if there is one
+                if self.current_event is not None:
+                    yield self.current_event
 
-                # Samples are stored as 16 bit numbers (i.e. 2 bytes).  Also
-                # note that // is an integer divide.
-                latest_time.append(trigger_time + len(data) // 2)
+                # Prepare new event
+                self.current_event = Event(n_channels=self.config['n_channels'],
+                                           start_time=pulse_time * self.mongo_time_unit,
+                                           sample_duration=self.config['sample_duration'],
+                                           # Samples are stored as 16 bit numbers (i.e. 2 bytes).  Also
+                                           # note that // is an integer divide.
+                                           stop_time=pulse_time + len(pulse_data) // 2)
 
-                occurrence_objects.append(Occurrence(left=0,
-                                                     raw_data=np.fromstring(data,
-                                                                            dtype="<i2"),
-                                                     channel=occurrence_doc['channel']))
+            # Add another occ to existing event
+            self.current_event.occurrences.append(Occurrence(left=0,
+                                                             raw_data=np.fromstring(pulse_data,
+                                                                                    dtype="<i2"),
+                                                             channel=pulse_doc['channel']))
 
-            earliest_time = trigger_time * self.mongo_time_unit
-            latest_time = max(latest_time) * self.mongo_time_unit
-
-            self.log.debug("Building event in range [%d,%d]",
-                           earliest_time,
-                           latest_time)
-            yield Event(n_channels=self.config['n_channels'],
-                        start_time=earliest_time,
-                        sample_duration=self.config['sample_duration'],
-                        stop_time=latest_time,
-                        occurrences=occurrence_objects)
+            self.last_pulse_time = pulse_time
