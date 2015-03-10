@@ -342,8 +342,12 @@ class MongoDBInputTriggered(plugin.InputPlugin):
             self.log.exception(e)
             raise
 
-        self.cursor = self.collection.find()
-        self.number_of_events = self.cursor.count()
+        # This wont work once you put in an extra detector
+        self.n_real_channels = len(self.config['channels_top'] + self.config['channels_bottom'])
+
+        self.collection.ensure_index([("time", pymongo.ASCENDING)])
+        self.cursor = self.collection.find().sort('time', pymongo.ASCENDING)
+        self.number_of_events = self.cursor.count() / self.n_real_channels
         if self.number_of_events == 0:
             raise RuntimeError("No events found... easy day for me!")
 
@@ -370,6 +374,14 @@ class MongoDBInputTriggered(plugin.InputPlugin):
                 if self.current_event is not None:
 
                     self.total_time_taken += (time.time() - self.ts) * 1000
+
+                    a = len(self.current_event.occurrences)
+                    if a != self.n_real_channels:
+                        raise RuntimeError("Event %d has %d occurrences, should be %d!"
+                                           "This is assuming all channels always report data, "
+                                           "if it's ok if they don't, just comment this error" % (
+                                               self.current_event.event_number, a, self.n_real_channels))
+
                     yield self.current_event
                     self.ts = time.time()       # Restart clock
 
