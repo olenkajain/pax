@@ -242,7 +242,11 @@ class BulkOutput(plugin.OutputPlugin):
         if isinstance(x, float):
             return name, 'f'
         if isinstance(x, str):
-            return name, 'S' + str(self.config['string_data_length'])
+            if self.output_format.prefers_python_strings:
+                #print("Using python strings as strings in records")
+                return name, 'O'
+            else:
+                return name, 'S' + str(self.config['string_data_length'])
         if isinstance(x, np.ndarray):
             return name, x.dtype, x.shape
         else:
@@ -278,6 +282,9 @@ class ReadFromBulkOutput(plugin.InputPlugin):
         if not of.supports_read_back:
             raise NotImplementedError("Output format %s does not "
                                       "support reading data back in!" % self.config['format'])
+        if not of.supports_array_fields:
+            self.log.warning("Reading back from a format that doesn't support array fields: "
+                             "fields like area_per_channel will NOT be loaded in... Fixme!")
 
         of.open(name=self.config['input_name'], mode='r')
 
@@ -294,7 +301,6 @@ class ReadFromBulkOutput(plugin.InputPlugin):
 
     def get_events(self):
         """Get events from processed data source
-        Follows plugin API.
         """
         of = self.output_format
 
@@ -381,7 +387,7 @@ class ReadFromBulkOutput(plugin.InputPlugin):
         result = {}
         for k, v in zip(names, record):
             # Skip index fields, if present
-            if k in ('Event', 'Peak', 'ChannelPeak', 'ReconstructedPosition'):
+            if k in ('Event', 'Peak', 'ChannelPeak', 'ReconstructedPosition', 'index'):
                 continue
             if isinstance(v, np.bytes_):
                 v = v.decode("utf-8")

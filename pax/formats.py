@@ -34,7 +34,7 @@ class BulkOutputFormat(object):
     supports_write_in_chunks = False
     supports_array_fields = False
     supports_read_back = False
-    supports_read_in_chunks = False
+    prefers_python_strings = False
     file_extension = 'DIRECTORY'   # Leave to None for database insertion or something
 
     def __init__(self, log=base_logger):
@@ -216,12 +216,16 @@ class ROOTDump(BulkOutputFormat):
 class PandasFormat(BulkOutputFormat):
 
     pandas_format_key = None
+    prefers_python_strings = True
 
     def write_data(self, data):
         for name, records in data.items():
             # Write pandas dataframe to container
-            self.write_pandas_dataframe(name,
-                                        pandas.DataFrame.from_records(records))
+            # print(name, records.dtype)
+            df = pandas.DataFrame.from_records(records)
+            # print(df.head())
+            # exit()
+            self.write_pandas_dataframe(name, df)
 
     def write_pandas_dataframe(self, df_name, df):
         # Write each DataFrame to file
@@ -245,26 +249,37 @@ class PandasSQL(PandasFormat):
     pandas_format_key = 'sql'
     supports_append = True
     supports_write_in_chunks = True
-    supports_read_in_chunks = True
+    supports_read_back = True
 
     file_extension = None   # Will ensure no directory gets created
 
     def open(self, name, mode):
-        self.engine = sqlalchemy.create_engine('sqlite:///%s.db' % name)
+        self.engine = sqlalchemy.create_engine(name)
+        self.connection = self.engine.connect()
         self.chunk_iterators = {}
 
     def write_pandas_dataframe(self, df_name, df):
         # TODO: maybe append only if requested? Then need to know if this is the first time.
         df.to_sql(df_name, self.engine, if_exists='append')
 
-    # def read_data(self, df_name, start, end):
-    #     return
-    #
-    # def read_chunk(self, df_name, chunksize=100):
-    #     # Chunksize only takes effect when reading the first chunk, is fixed from then on for that table
-    #     if df_name not in self.chunk_iterators:
-    #         self.chunk_iterators = pandas.read_sql_table(df_name, self.engine, chunksize=chunksize)
-    #     return next(self.chunk_iterators).to_records()
+    def read_data(self, df_name, start=0, end=None):
+        if end is None:
+            end = self.n_in_data(df_name)
+        # Pandas writes a 'rowid' column in every table which starts from 1
+        # SQL's BETWEEN is inclusive in both bounds
+        # ReadFromBulkOutput gives inclusive start and end as well, but expects zero-based indexing
+        #print("Getting data for %s" % df_name)
+        pd = pandas.read_sql_query("SELECT * FROM %s WHERE rowid BETWEEN %d AND %d" % (df_name,
+                                                                                       start + 1,
+                                                                                       end + 1),
+                                   self.engine)
+        #print(pd.head())
+        return pd.to_records(index=False)
+
+    def n_in_data(self, df_name):
+        sql_result = self.connection.execute("SELECT COUNT(*) FROM %s" % df_name)
+        return list(sql_result)[0][0]
+
 
 
 # List of data formats, pax / analysis code can import this

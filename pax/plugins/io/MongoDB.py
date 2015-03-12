@@ -345,68 +345,98 @@ class MongoDBInputTriggered(plugin.InputPlugin):
         # This wont work once you put in an extra detector
         self.n_real_channels = len(self.config['channels_top'] + self.config['channels_bottom'])
 
-        self.collection.ensure_index([("time", pymongo.ASCENDING)])
-        self.cursor = self.collection.find().sort('time', pymongo.ASCENDING)
-        self.number_of_events = self.cursor.count() / self.n_real_channels
-        if self.number_of_events == 0:
-            raise RuntimeError("No events found... easy day for me!")
-
         self.last_pulse_time = None
         self.current_event = None
         self.event_number = -1
 
         self.mongo_time_unit = int(self.config['mongo_time_unit'])
 
+        # Continuous acquisition options
+        self.continuous_acquisition = self.config.get('continuous_acquisition', False)
+        self.sleep_seconds_if_too_few_events = self.config.get('sleep_seconds_if_too_few_events', 2)
+        self.min_number_of_events = self.config.get('min_number_of_events', 30)
+
     def total_number_events(self):
         return self.number_of_events
 
     def get_events(self):
-        self.ts = time.time()
-        for pulse_doc in self.cursor:
+        # In continuous acquisition mode, do an infinite loop. Else, do once.
+        while self.continuous_acquisition or self.last_pulse_time is None:
 
-            pulse_time = pulse_doc['time'] * self.mongo_time_unit
-            pulse_data = snappy.decompress(pulse_doc['data'])
-            pulse_data = np.fromstring(pulse_data, dtype="<i2")
-            channel = pulse_doc['channel']
+            # Ensure we can get sorted results:
+            self.collection.ensure_index([("time", pymongo.ASCENDING)])
 
-            if pulse_time != self.last_pulse_time:
-                # Yield current event, if there is one
-                if self.current_event is not None:
+            # What query should we do?
+            if self.last_pulse_time is not None:
+                # We've queried pulses before, only get pulses we haven't seen now
+                query = {"time": {"$gt": self.last_pulse_time}}
+            else:
+                # Get all pulses in the collection
+                query = {}
 
-                    self.total_time_taken += (time.time() - self.ts) * 1000
+            # Get cursor to the desired pulses in ascending time order
+            self.cursor = self.collection.find(query).sort('time', pymongo.ASCENDING)
 
-                    a = len(self.current_event.occurrences)
-                    if a != self.n_real_channels:
-                        raise RuntimeError("Event %d has %d occurrences, should be %d!"
-                                           "This is assuming all channels always report data, "
-                                           "if it's ok if they don't, just comment this error" % (
-                                               self.current_event.event_number, a, self.n_real_channels))
+            # Assuming each channel has data always (ie no ZLE), we know the number of events
+            self.number_of_events = self.cursor.count() / self.n_real_channels
 
-                    yield self.current_event
-                    self.ts = time.time()       # Restart clock
+            # If we're in continuous acquisition mode, and there's only a few events,
+            # we can take a brief break to allow the DAQ to catch up.
+            if self.continuous_acquisition:
+                if self.number_of_events < self.min_number_of_events:
+                    self.log.warning("Only %d events found: waiting %d sec for more data" % (
+                        self.number_of_events, self.sleep_seconds_if_too_few_events))
+                    time.sleep(self.sleep_seconds_if_too_few_events)
+                    continue
 
-                # Prepare new event
-                self.event_number += 1
-                self.current_event = Event(n_channels=self.config['n_channels'],
-                                           start_time=pulse_time,
-                                           sample_duration=self.config['sample_duration'],
-                                           event_number=self.event_number,
-                                           # Samples are stored as 16 bit numbers (i.e. 2 bytes).  Also
-                                           # note that // is an integer divide.
-                                           stop_time=pulse_time + len(pulse_data) * self.config['sample_duration'])
+            elif self.number_of_events == 0:
+                raise RuntimeError("No events found in this collection!")
 
-                self.log.debug("Started new event at %s, end at %s" % (
-                    self.current_event.start_time,
-                    self.current_event.stop_time))
 
-            self.log.debug("Adding pulse at %d from channel %d" % (pulse_time, channel))
+            self.ts = time.time()       # Start clock for timing report
+            for pulse_doc in self.cursor:
 
-            # Add another pulse to existing event
-            self.current_event.occurrences.append(Occurrence(left=0,
-                                                             raw_data=pulse_data,
-                                                             channel=channel))
+                pulse_time = pulse_doc['time'] * self.mongo_time_unit
+                pulse_data = snappy.decompress(pulse_doc['data'])
+                pulse_data = np.fromstring(pulse_data, dtype="<i2")
+                channel = pulse_doc['channel']
 
-            self.last_pulse_time = pulse_time
+                if pulse_time != self.last_pulse_time:
+                    # Yield current event, if there is one
+                    if self.current_event is not None:
+
+
+                        a = len(self.current_event.occurrences)
+                        if a != self.n_real_channels:
+                            raise RuntimeError("Event %d has %d occurrences, should be %d!"
+                                               "This is assuming all channels always report data, "
+                                               "if it's ok if they don't, just comment this error" % (
+                                                   self.current_event.event_number, a, self.n_real_channels))
+
+                        self.total_time_taken += (time.time() - self.ts) * 1000      # Store elapsed time
+                        yield self.current_event
+                        self.ts = time.time()       # Restart clock for timing report
+
+                    # Prepare new event
+                    self.event_number += 1
+                    self.current_event = Event(n_channels=self.config['n_channels'],
+                                               start_time=pulse_time,
+                                               sample_duration=self.config['sample_duration'],
+                                               event_number=self.event_number,
+                                               stop_time=pulse_time + len(pulse_data) * self.config['sample_duration'])
+
+                    self.log.debug("Started new event at %s, end at %s" % (
+                        self.current_event.start_time,
+                        self.current_event.stop_time))
+
+                self.log.debug("Adding pulse at %d from channel %d" % (pulse_time, channel))
+
+                # Add another pulse to existing event
+                self.current_event.occurrences.append(Occurrence(left=0,
+                                                                 raw_data=pulse_data,
+                                                                 channel=channel))
+
+                self.last_pulse_time = pulse_time
 
     def shutdown(self):
-        del self.cursor
+        del self.cursor     # Maybe unnecessary? Test!
