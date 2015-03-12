@@ -8,18 +8,23 @@ base_logger = logging.getLogger('BulkOutput')
 try:
     import ROOT  # noqa
 except ImportError:
-    base_logger.warning("ROOT module not imported - if you use the ROOT output, pax will crash!")
+    base_logger.warning("You don't have ROOT (or your ROOT doesn't work) "
+                        "- if you use the ROOT output, pax will crash!")
 
 try:
     import pandas
 except ImportError:
     base_logger.warning("You don't have pandas -- if you use the pandas output, pax will crash!")
 
-
 try:
     import h5py
 except ImportError:
-    base_logger.warning("You don't have the HDF5 output -- if you use the hdf5 output, pax will crash!")
+    base_logger.warning("You don't have h5py output -- if you use the hdf5 output, pax will crash!")
+
+try:
+    import sqlalchemy
+except ImportError:
+    base_logger.warning("You don't have SQLAlchemy - if you use the sql output, pax will crash!")
 
 
 class BulkOutputFormat(object):
@@ -29,6 +34,7 @@ class BulkOutputFormat(object):
     supports_write_in_chunks = False
     supports_array_fields = False
     supports_read_back = False
+    supports_read_in_chunks = False
     file_extension = 'DIRECTORY'   # Leave to None for database insertion or something
 
     def __init__(self, log=base_logger):
@@ -235,12 +241,39 @@ class PandasJSON(PandasFormat):
     pandas_format_key = 'json'
 
 
+class PandasSQL(PandasFormat):
+    pandas_format_key = 'sql'
+    supports_append = True
+    supports_write_in_chunks = True
+    supports_read_in_chunks = True
+
+    file_extension = None   # Will ensure no directory gets created
+
+    def open(self, name, mode):
+        self.engine = sqlalchemy.create_engine('sqlite:///%s.db' % name)
+        self.chunk_iterators = {}
+
+    def write_pandas_dataframe(self, df_name, df):
+        # TODO: maybe append only if requested? Then need to know if this is the first time.
+        df.to_sql(df_name, self.engine, if_exists='append')
+
+    # def read_data(self, df_name, start, end):
+    #     return
+    #
+    # def read_chunk(self, df_name, chunksize=100):
+    #     # Chunksize only takes effect when reading the first chunk, is fixed from then on for that table
+    #     if df_name not in self.chunk_iterators:
+    #         self.chunk_iterators = pandas.read_sql_table(df_name, self.engine, chunksize=chunksize)
+    #     return next(self.chunk_iterators).to_records()
+
+
 # List of data formats, pax / analysis code can import this
 flat_data_formats = {
     'hdf5':         HDF5Dump,
     'numpy':        NumpyDump,
     'csv':          PandasCSV,
     'html':         PandasHTML,
+    'sql':          PandasSQL,
     'json':         PandasJSON,
     'root':         ROOTDump
 }
