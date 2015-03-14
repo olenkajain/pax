@@ -82,11 +82,10 @@ class FindHits(plugin.TransformPlugin):
                 baseline = baseline_slope * np.arange(len(w)) + baseline_intercept
             w -= baseline
 
-            # Determine the base noise level (- mean of samples < 0 in the initial baseline sample)
+            # Determine the base noise level (- mean of samples < 0 in the pulse)
             # Median would be more robust against outliers... but we don't want robustness here:
             # If the noise is long-tailed / nongaussian, it means trouble!
-            pulse.noise_level = noise_level = - np.mean(w[:self.baseline_sample_length][
-                w[:self.baseline_sample_length] < 0])
+            pulse.noise_level = noise_level = - np.mean(w[w<0])
 
             # Determine the detection threshold
             # base threshold * noise_level + multiplier * (w with all positive samples clipped to 0, smoothened)
