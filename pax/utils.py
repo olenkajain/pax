@@ -68,7 +68,7 @@ def cluster_by_diff(x, diff_threshold, return_indices=False):
 
 
 def mad(data, axis=None):
-    """ Return median absolute deviation of numpy array"""
+    """ Return median absolute deviation from median of numpy array"""
     return np.mean(np.absolute(data - np.median(data, axis)), axis)
 
 

@@ -72,10 +72,14 @@ class ChannelPeak(Model):
         return self.right - self.left + 1
 
     area = 0.0                  #: Area of the peak in photoelectrons
+
     #: Height of highest point in peak (in pe/bin) in unfiltered waveform
     height = 0.0
-    #: Noise sigma in pe/bin of pulse in which peak was found.
-    noise_sigma = 0.0
+
+    #: Peak height divided by detection threshold at the maximum index
+    #: Note this is NOT the maximum of height/threshold. Thus, it's not guaranteed to be >= 1!
+    height_over_threshold = 0.0
+
     # note: in Pulse the same number is stored in ADC-counts
 
     #: Index of pulse (in event.occurrences) in which peak was found
@@ -219,11 +223,15 @@ class Occurrence(StrictModel):
     #: Noise sigma for this occurrence (in ADC counts)
     #: Computed in the filtered channel waveform
     #: Will remain nan unless occurrence is processed by smallpeakfinder
-    noise_sigma = float('nan')
+    noise_level = float('nan')
 
     #: Baseline (in ADC counts, but float!) relative to configured reference baseline
     #: Will remain nan if occurrence is not processed by hitfinder
+    #: If baseline detrending is activated, this is the baseline at the start of the pulse
     baseline = float('nan')
+
+    #: If baseline detrending is activated, slope of baseline (in ADC counts / sample)
+    baseline_slope = 0.0
 
     #: Raw wave data (in ADC counts, NOT pe/bin!; numpy array of int16)
     raw_data = np.array([], np.int16)

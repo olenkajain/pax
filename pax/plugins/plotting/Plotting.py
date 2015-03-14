@@ -378,24 +378,21 @@ class PlotChannelWaveforms2D(PlotBase):
 
         result = []
         for hit in event.all_channel_peaks:
-            if hit.noise_sigma == 0:
-                # Could happen for simulated events
-                color_factor = 1
-            else:
-                color_factor = min(max(hit.height / (20 * hit.noise_sigma), 0), 1)
+            color_factor = min(hit.height_over_threshold, 5)/5
             result.append([
                 (0.5 + hit.index_of_maximum) * time_scale,             # X
                 0.5 + hit.channel,                                     # Y
-                color_factor,                                          # Color (in [0,1])
+                color_factor,                                          # Color (in [0,1] -> [Blue, Red])
                 10 * min(10, hit.area),                                # Size
-                (0.2 if hit.is_rejected else 1.0),                     # Alpha
+                (1 if hit.is_rejected else 0),                         # Is rejected? If not, will make green
             ])
         if len(result) != 0:
             rgba_colors = np.zeros((len(result), 4))
             result = np.array(result).T
-            rgba_colors[:, 0] = result[2]
-            rgba_colors[:, 2] = 1 - result[2]
-            rgba_colors[:, 3] = result[4]
+            rgba_colors[:, 0] = (1 - result[4]) * result[2]                     # R
+            rgba_colors[:, 1] = result[4]                 # G
+            rgba_colors[:, 2] = (1 - result[4]) * (1 - result[2])                 # B
+            rgba_colors[:, 3] = 1                             # A
             plt.scatter(result[0], result[1], c=rgba_colors, s=result[3], edgecolor=None, lw=0)
 
         # Plot the bottom/top/veto boundaries
