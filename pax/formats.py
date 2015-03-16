@@ -117,9 +117,14 @@ class HDF5Dump(BulkOutputFormat):
     def read_data(self, df_name, start=0, end=None):
         if end is None:
             end = self.n_in_data(df_name)
+            if end == 0:
+                return []
         return self.f.get(df_name)[start:end]
 
     def n_in_data(self, df_name):
+        if not df_name in self.f:
+            self.log.warning("No %s present in HDF5 file... you sure this is good data?" % df_name)
+            return 0
         return self.f[df_name].len()
 
 
@@ -260,23 +265,27 @@ class PandasSQL(PandasFormat):
 
     def write_pandas_dataframe(self, df_name, df):
         # TODO: maybe append only if requested? Then need to know if this is the first time.
-        df.to_sql(df_name, self.engine, if_exists='append')
+        df.to_sql(df_name, self.engine, if_exists='append', index_label='rowid')
 
     def read_data(self, df_name, start=0, end=None):
         if end is None:
             end = self.n_in_data(df_name)
-        # Pandas writes a 'rowid' column in every table which starts from 1
+            if end == 0:
+                return []
         # SQL's BETWEEN is inclusive in both bounds
-        # ReadFromBulkOutput gives inclusive start and end as well, but expects zero-based indexing
+        # ReadFromBulkOutput gives inclusive start and end as well
         #print("Getting data for %s" % df_name)
-        pd = pandas.read_sql_query("SELECT * FROM %s WHERE rowid BETWEEN %d AND %d" % (df_name,
-                                                                                       start + 1,
-                                                                                       end + 1),
-                                   self.engine)
-        #print(pd.head())
+        query = "SELECT * FROM %s WHERE rowid BETWEEN %d AND %d" % (df_name, start, end)
+        pd = pandas.read_sql_query(query, self.engine)    #.dropna()  # HACK -- why should dropna be necessary???!!
         return pd.to_records(index=False)
 
     def n_in_data(self, df_name):
+        # First check to see if the table exists
+        a = self.connection.execute("show tables like '%s'" % df_name)
+        if len(list(a)) == 0:
+            self.log.warning("Table %s does not exist in the database!" % df_name)
+            return 0
+        # Yes, so return the number of entries in the table
         sql_result = self.connection.execute("SELECT COUNT(*) FROM %s" % df_name)
         return list(sql_result)[0][0]
 

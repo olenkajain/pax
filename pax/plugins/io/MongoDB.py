@@ -332,7 +332,8 @@ class MongoDBInputTriggered(plugin.InputPlugin):
     """
 
     def startup(self):
-        self.log.debug("Connecting to %s" % self.config['address'])
+        self.log.debug("Connecting to %s, database %s, collection %s" % (
+            self.config['address'], self.config['database'], self.config['collection']))
         try:
             self.client = pymongo.MongoClient(self.config['address'])
             self.database = self.client[self.config['database']]
@@ -368,8 +369,10 @@ class MongoDBInputTriggered(plugin.InputPlugin):
 
             # What query should we do?
             if self.last_pulse_time is not None:
-                # We've queried pulses before, only get pulses we haven't seen now
-                query = {"time": {"$gt": self.last_pulse_time}}
+                self.log.debug("Last pulse time %s, in mongo units %s" % (
+                   self.last_pulse_time, self.last_pulse_time / self.mongo_time_unit))
+                # We've processed pulses before, only get pulses we haven't seen yet now
+                query = {"time": {"$gt": self.last_pulse_time / self.mongo_time_unit}}
             else:
                 # Get all pulses in the collection
                 query = {}
@@ -379,6 +382,9 @@ class MongoDBInputTriggered(plugin.InputPlugin):
 
             # Assuming each channel has data always (ie no ZLE), we know the number of events
             self.number_of_events = self.cursor.count() / self.n_real_channels
+
+            if int(self.number_of_events) != self.number_of_events:
+                raise RuntimeError(self.cursor.count(), self.n_real_channels)
 
             # If we're in continuous acquisition mode, and there's only a few events,
             # we can take a brief break to allow the DAQ to catch up.
@@ -392,11 +398,12 @@ class MongoDBInputTriggered(plugin.InputPlugin):
             elif self.number_of_events == 0:
                 raise RuntimeError("No events found in this collection!")
 
-
             self.ts = time.time()       # Start clock for timing report
             for pulse_doc in self.cursor:
 
                 pulse_time = pulse_doc['time'] * self.mongo_time_unit
+                self.log.debug("Pulse time %s, in mongo units %s" % (
+                   pulse_time, pulse_time / self.mongo_time_unit))
                 pulse_data = snappy.decompress(pulse_doc['data'])
                 pulse_data = np.fromstring(pulse_data, dtype="<i2")
                 channel = pulse_doc['channel']
@@ -404,7 +411,6 @@ class MongoDBInputTriggered(plugin.InputPlugin):
                 if pulse_time != self.last_pulse_time:
                     # Yield current event, if there is one
                     if self.current_event is not None:
-
 
                         a = len(self.current_event.occurrences)
                         if a != self.n_real_channels:

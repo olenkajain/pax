@@ -325,13 +325,16 @@ class ReadFromBulkOutput(plugin.InputPlugin):
                     new_pos = min(self.max_n[dname],
                                   self.current_pos[dname] + self.chunk_size)
                     new_chunk = of.read_data(dname, self.current_pos[dname], new_pos)
+                    if len(new_chunk) == 0:
+                        raise RuntimeError("Empty chunk in %s, current pos %d, new pos %d, max n %d" % (
+                            dname, self.current_pos[dname], new_pos, self.max_n[dname]))
                     self.current_pos[dname] = new_pos
 
                     # Add new chunk to cache
-                    bla = np.concatenate((self.cache.get(dname,
-                                                         np.empty(0,
-                                                                  dtype=new_chunk.dtype)),
-                                          new_chunk))
+                    if dname not in self.cache or len(self.cache[dname]) == 0:
+                        bla = new_chunk
+                    else:
+                        bla = np.concatenate((self.cache[dname], new_chunk))
                     self.cache[dname] = bla
 
             # What number is the next event?
@@ -339,6 +342,9 @@ class ReadFromBulkOutput(plugin.InputPlugin):
 
             # Get all records belonging to this event:
             for dname in self.dnames:
+                if dname not in self.cache:
+                    self.log.warning("No %s read..? You sure you are alright?" % dname)
+                    continue
                 mask = self.cache[dname]['Event'] == this_event_i
                 in_this_event[dname] = self.cache[dname][mask]
 
@@ -347,9 +353,11 @@ class ReadFromBulkOutput(plugin.InputPlugin):
                 self.cache[dname] = self.cache[dname][inverted_mask]
 
             # Convert records to pax data
-            assert len(in_this_event['Event']) == 1
+            if not len(in_this_event['Event']) == 1:
+                raise RunteimeError("%d event records found for event_i %d!" % (
+                    len(in_this_event['Event']), this_event_i))
             e_record = in_this_event['Event'][0]
-            peaks = in_this_event['Peak']
+            peaks = in_this_event.get('Peak', [])
 
             # We defined a nice custom init for event... ahem... now we have to do cumbersome stuff...
             event = datastructure.Event(n_channels=self.config['n_channels'],
@@ -387,7 +395,7 @@ class ReadFromBulkOutput(plugin.InputPlugin):
         result = {}
         for k, v in zip(names, record):
             # Skip index fields, if present
-            if k in ('Event', 'Peak', 'ChannelPeak', 'ReconstructedPosition', 'index'):
+            if k in ('Event', 'Peak', 'ChannelPeak', 'ReconstructedPosition', 'index', 'rowid'):
                 continue
             if isinstance(v, np.bytes_):
                 v = v.decode("utf-8")
