@@ -393,6 +393,9 @@ class MongoDBInputTriggered(plugin.InputPlugin):
                 print("Fractional event number? Cursor count=%d, n_real_chs=%d. Cutting off overhang of %d pulses." % (
                         self.cursor.count(), self.n_real_channels, overhang))
 
+            if int(self.number_of_events) != self.number_of_events:
+                raise RuntimeError(self.cursor.count(), self.n_real_channels)
+
             # If we're in continuous acquisition mode, and there's only a few events,
             # we can take a brief break to allow the DAQ to catch up.
             if self.continuous_acquisition:
@@ -412,6 +415,7 @@ class MongoDBInputTriggered(plugin.InputPlugin):
 
                 pulse_doc = next(self.cursor)
                 pulse_time = pulse_doc['time'] * self.mongo_time_unit
+
                 self.log.debug("Pulse time %s, in mongo units %s" % (pulse_time, pulse_time / self.mongo_time_unit))
                 pulse_data = pulse_doc['data']
                 # pulse_data = snappy.decompress(pulse_doc['data'])
