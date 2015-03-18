@@ -117,9 +117,14 @@ class HDF5Dump(BulkOutputFormat):
     def read_data(self, df_name, start=0, end=None):
         if end is None:
             end = self.n_in_data(df_name)
+            if end == 0:
+                return []
         return self.f.get(df_name)[start:end]
 
     def n_in_data(self, df_name):
+        if not df_name in self.f:
+            self.log.warning("No %s present in HDF5 file... you sure this is good data?" % df_name)
+            return 0
         return self.f[df_name].len()
 
 
@@ -217,6 +222,7 @@ class PandasFormat(BulkOutputFormat):
 
     pandas_format_key = None
     prefers_python_strings = True
+    file_extension = 'hdf5'
 
     def write_data(self, data):
         for name, records in data.items():
@@ -232,7 +238,6 @@ class PandasFormat(BulkOutputFormat):
         getattr(df, 'to_' + self.pandas_format_key)(
             os.path.join(self.filename, df_name + '.' + self.pandas_format_key))
 
-
 class PandasCSV(PandasFormat):
     pandas_format_key = 'csv'
 
@@ -240,9 +245,54 @@ class PandasCSV(PandasFormat):
 class PandasHTML(PandasFormat):
     pandas_format_key = 'html'
 
-
 class PandasJSON(PandasFormat):
     pandas_format_key = 'json'
+
+class PandasHDF5(PandasFormat):
+    supports_append = True
+    supports_write_in_chunks = True
+    supports_read_back = True
+
+    string_data_length = 32     # HACK
+
+    def open(self, name, mode):
+        self.store = pandas.HDFStore(name, complevel=9, complib='blosc')
+
+    def close(self):
+        self.store.close()
+
+    def write_pandas_dataframe(self, df_name, df):
+        if df_name == 'pax_info':
+
+            # HACK: don't write metadata
+            return
+
+            # Don't worry about pre-setting string field lengths
+            self.store.append(df_name, df, format='table')
+
+        else:
+            # Look for string fields (dtype=object), we should pre-set a length for them
+            string_fields = df.select_dtypes(include=['object']).columns.values
+
+            self.store.append(df_name, df, format='table',
+                              min_itemsize={field_name: self.string_data_length
+                                            for field_name in string_fields})
+
+    def read_data(self, df_name, start=0, end=None):
+        if end is None:
+            end = self.n_in_data(df_name)
+            if end == 0:
+                return []
+        return self.store[df_name][start:end+1].to_records(index=False)
+
+    def n_in_data(self, df_name):
+        if not df_name in self.store:
+            print(self.store)
+            self.log.warning("No %s present in HDF5 file... you sure this is good data?" % df_name)
+            return 0
+        return len(self.store[df_name])
+
+
 
 
 class PandasSQL(PandasFormat):
@@ -260,26 +310,29 @@ class PandasSQL(PandasFormat):
 
     def write_pandas_dataframe(self, df_name, df):
         # TODO: maybe append only if requested? Then need to know if this is the first time.
-        df.to_sql(df_name, self.engine, if_exists='append')
+        df.to_sql(df_name, self.engine, if_exists='append', index_label='rowid')
 
     def read_data(self, df_name, start=0, end=None):
         if end is None:
             end = self.n_in_data(df_name)
-        # Pandas writes a 'rowid' column in every table which starts from 1
+            if end == 0:
+                return []
         # SQL's BETWEEN is inclusive in both bounds
-        # ReadFromBulkOutput gives inclusive start and end as well, but expects zero-based indexing
+        # ReadFromBulkOutput gives inclusive start and end as well
         #print("Getting data for %s" % df_name)
-        pd = pandas.read_sql_query("SELECT * FROM %s WHERE rowid BETWEEN %d AND %d" % (df_name,
-                                                                                       start + 1,
-                                                                                       end + 1),
-                                   self.engine)
-        #print(pd.head())
+        query = "SELECT * FROM %s WHERE rowid BETWEEN %d AND %d" % (df_name, start, end)
+        pd = pandas.read_sql_query(query, self.engine)    #.dropna()  # HACK -- why should dropna be necessary???!!
         return pd.to_records(index=False)
 
     def n_in_data(self, df_name):
+        # First check to see if the table exists
+        a = self.connection.execute("show tables like '%s'" % df_name)
+        if len(list(a)) == 0:
+            self.log.warning("Table %s does not exist in the database!" % df_name)
+            return 0
+        # Yes, so return the number of entries in the table
         sql_result = self.connection.execute("SELECT COUNT(*) FROM %s" % df_name)
         return list(sql_result)[0][0]
-
 
 
 # List of data formats, pax / analysis code can import this
@@ -290,5 +343,6 @@ flat_data_formats = {
     'html':         PandasHTML,
     'sql':          PandasSQL,
     'json':         PandasJSON,
-    'root':         ROOTDump
+    'root':         ROOTDump,
+    'hdf5_pandas':   PandasHDF5,
 }

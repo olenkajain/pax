@@ -108,8 +108,6 @@ class BulkOutput(plugin.OutputPlugin):
             # We are a dir output format: dir must exist
             os.mkdir(outfile)
 
-        # Open the output file
-        self.output_format.open(self.config['output_name'], mode='w')
 
     def write_event(self, event):
         """Receive event and determine what to do with it
@@ -151,7 +149,12 @@ class BulkOutput(plugin.OutputPlugin):
             self.log.warning('No events to write: did you crash pax?')
             return
         if self.data['Event']['records'] is not None:
+
+            # HACK FOR ONLINE PROCESSING: open and close output format
+            self.output_format.open(self.config['output_name'], mode='w')
             self.output_format.write_data({k: v['records'] for k, v in self.data.items()})
+            self.output_format.close()
+
         # Delete records we've just written to disk
         for d in self.data.keys():
             self.data[d]['records'] = None
@@ -318,6 +321,8 @@ class ReadFromBulkOutput(plugin.InputPlugin):
                 while dname not in self.cache or len(self.cache[dname]) == 0 \
                         or self.cache[dname][0]['Event'] == self.cache[dname][-1]['Event']:
 
+                    self.log.debug("Now at event %d, filling cache for %s!" % (event_i, dname))
+
                     # If no data of this dname left in the file, we of course stop filling the cache
                     if self.current_pos[dname] == self.max_n[dname]:
                         break
@@ -325,13 +330,16 @@ class ReadFromBulkOutput(plugin.InputPlugin):
                     new_pos = min(self.max_n[dname],
                                   self.current_pos[dname] + self.chunk_size)
                     new_chunk = of.read_data(dname, self.current_pos[dname], new_pos)
+                    if len(new_chunk) == 0:
+                        raise RuntimeError("Empty chunk in %s, current pos %d, new pos %d, max n %d" % (
+                            dname, self.current_pos[dname], new_pos, self.max_n[dname]))
                     self.current_pos[dname] = new_pos
 
                     # Add new chunk to cache
-                    bla = np.concatenate((self.cache.get(dname,
-                                                         np.empty(0,
-                                                                  dtype=new_chunk.dtype)),
-                                          new_chunk))
+                    if dname not in self.cache or len(self.cache[dname]) == 0:
+                        bla = new_chunk
+                    else:
+                        bla = np.concatenate((self.cache[dname], new_chunk))
                     self.cache[dname] = bla
 
             # What number is the next event?
@@ -339,6 +347,9 @@ class ReadFromBulkOutput(plugin.InputPlugin):
 
             # Get all records belonging to this event:
             for dname in self.dnames:
+                if dname not in self.cache:
+                    self.log.warning("No %s read..? You sure you are alright?" % dname)
+                    continue
                 mask = self.cache[dname]['Event'] == this_event_i
                 in_this_event[dname] = self.cache[dname][mask]
 
@@ -347,9 +358,11 @@ class ReadFromBulkOutput(plugin.InputPlugin):
                 self.cache[dname] = self.cache[dname][inverted_mask]
 
             # Convert records to pax data
-            assert len(in_this_event['Event']) == 1
+            if not len(in_this_event['Event']) == 1:
+                raise RunteimeError("%d event records found for event_i %d!" % (
+                    len(in_this_event['Event']), this_event_i))
             e_record = in_this_event['Event'][0]
-            peaks = in_this_event['Peak']
+            peaks = in_this_event.get('Peak', [])
 
             # We defined a nice custom init for event... ahem... now we have to do cumbersome stuff...
             event = datastructure.Event(n_channels=self.config['n_channels'],
@@ -387,7 +400,7 @@ class ReadFromBulkOutput(plugin.InputPlugin):
         result = {}
         for k, v in zip(names, record):
             # Skip index fields, if present
-            if k in ('Event', 'Peak', 'ChannelPeak', 'ReconstructedPosition', 'index'):
+            if k in ('Event', 'Peak', 'ChannelPeak', 'ReconstructedPosition', 'index', 'rowid'):
                 continue
             if isinstance(v, np.bytes_):
                 v = v.decode("utf-8")

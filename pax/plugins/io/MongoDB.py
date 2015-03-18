@@ -332,7 +332,8 @@ class MongoDBInputTriggered(plugin.InputPlugin):
     """
 
     def startup(self):
-        self.log.debug("Connecting to %s" % self.config['address'])
+        self.log.debug("Connecting to %s, database %s, collection %s" % (
+            self.config['address'], self.config['database'], self.config['collection']))
         try:
             self.client = pymongo.MongoClient(self.config['address'])
             self.database = self.client[self.config['database']]
@@ -343,18 +344,22 @@ class MongoDBInputTriggered(plugin.InputPlugin):
             raise
 
         # This wont work once you put in an extra detector
-        self.n_real_channels = len(self.config['channels_top'] + self.config['channels_bottom'])
-
-        self.last_pulse_time = None
-        self.current_event = None
-        self.event_number = -1
+        self.n_real_channels = 0    # len(self.config['channels_top'] + self.config['channels_bottom'])
+        for dn, chs in self.config['channels_in_detector'].items():
+            self.n_real_channels += len(chs)
 
         self.mongo_time_unit = int(self.config['mongo_time_unit'])
+
+        self.last_pulse_time = None     # 1500000000000 * self.mongo_time_unit        # HACK DANGEROUS REMOVE!!!!!
+        self.current_event = None
+        self.event_number = -1
 
         # Continuous acquisition options
         self.continuous_acquisition = self.config.get('continuous_acquisition', False)
         self.sleep_seconds_if_too_few_events = self.config.get('sleep_seconds_if_too_few_events', 2)
         self.min_number_of_events = self.config.get('min_number_of_events', 30)
+
+        self.process_only_one_in = self.config.get('process_only_one_in', False)
 
     def total_number_events(self):
         return self.number_of_events
@@ -368,8 +373,10 @@ class MongoDBInputTriggered(plugin.InputPlugin):
 
             # What query should we do?
             if self.last_pulse_time is not None:
-                # We've queried pulses before, only get pulses we haven't seen now
-                query = {"time": {"$gt": self.last_pulse_time}}
+                self.log.debug("Last pulse time %s, in mongo units %s" % (
+                   self.last_pulse_time, self.last_pulse_time / self.mongo_time_unit))
+                # We've processed pulses before, only get pulses we haven't seen yet now
+                query = {"time": {"$gt": self.last_pulse_time / self.mongo_time_unit}}
             else:
                 # Get all pulses in the collection
                 query = {}
@@ -377,8 +384,14 @@ class MongoDBInputTriggered(plugin.InputPlugin):
             # Get cursor to the desired pulses in ascending time order
             self.cursor = self.collection.find(query).sort('time', pymongo.ASCENDING)
 
+            overhang = self.cursor.count() % self.n_real_channels
+
             # Assuming each channel has data always (ie no ZLE), we know the number of events
-            self.number_of_events = self.cursor.count() / self.n_real_channels
+            self.number_of_events = (self.cursor.count() - overhang) / self.n_real_channels
+
+            if overhang != 0:
+                print("Fractional event number? Cursor count=%d, n_real_chs=%d. Cutting off overhang of %d pulses." % (
+                        self.cursor.count(), self.n_real_channels, overhang))
 
             # If we're in continuous acquisition mode, and there's only a few events,
             # we can take a brief break to allow the DAQ to catch up.
@@ -388,16 +401,20 @@ class MongoDBInputTriggered(plugin.InputPlugin):
                         self.number_of_events, self.sleep_seconds_if_too_few_events))
                     time.sleep(self.sleep_seconds_if_too_few_events)
                     continue
+                else:
+                    print("Found %d events, starting processing!" % self.number_of_events)
 
             elif self.number_of_events == 0:
                 raise RuntimeError("No events found in this collection!")
 
-
             self.ts = time.time()       # Start clock for timing report
-            for pulse_doc in self.cursor:
+            for pulse_doc in range(int(self.n_real_channels * self.number_of_events)):
 
+                pulse_doc = next(self.cursor)
                 pulse_time = pulse_doc['time'] * self.mongo_time_unit
-                pulse_data = snappy.decompress(pulse_doc['data'])
+                self.log.debug("Pulse time %s, in mongo units %s" % (pulse_time, pulse_time / self.mongo_time_unit))
+                pulse_data = pulse_doc['data']
+                # pulse_data = snappy.decompress(pulse_doc['data'])
                 pulse_data = np.fromstring(pulse_data, dtype="<i2")
                 channel = pulse_doc['channel']
 
@@ -405,16 +422,22 @@ class MongoDBInputTriggered(plugin.InputPlugin):
                     # Yield current event, if there is one
                     if self.current_event is not None:
 
-
                         a = len(self.current_event.occurrences)
                         if a != self.n_real_channels:
-                            raise RuntimeError("Event %d has %d occurrences, should be %d!"
-                                               "This is assuming all channels always report data, "
-                                               "if it's ok if they don't, just comment this error" % (
+                            self.log.error("Event %d has %d occurrences, should be %d!"
+                                           "This is assuming all channels always report data, "
+                                           "if it's ok if they don't, just comment this error" % (
                                                    self.current_event.event_number, a, self.n_real_channels))
+                            # DIRTY HACK!
+                            # Skip this event, do a new query, hope it doesn't crash this time...
+                            self.last_pulse_time += 1
+                            self.event_number -= 1
+                            self.current_event = None
+                            break
 
                         self.total_time_taken += (time.time() - self.ts) * 1000      # Store elapsed time
-                        yield self.current_event
+                        if not self.process_only_one_in or self.current_event % self.process_only_one_in == 0:
+                            yield self.current_event
                         self.ts = time.time()       # Restart clock for timing report
 
                     # Prepare new event
