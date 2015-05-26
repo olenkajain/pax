@@ -76,13 +76,21 @@ class Model(object):
     def to_dict(self, json_compatible=False):
         result = {}
         for k, v in self.get_fields_data():
+            print(k)
             if isinstance(v, list):
                 result[k] = [el.to_dict(json_compatible) for el in v]
+                json.dumps(result[k])
             elif isinstance(v, np.ndarray) and json_compatible:
                 # For JSON compatibility, numpy arrays must be converted to lists
                 result[k] = v.tolist()
+                json.dumps(result[k])
             else:
-                result[k] = v
+                # For JSON compatibility we should convert numpy types
+                if type(v).__module__ == np.__name__ and json_compatible:
+                    result[k] = v.item()
+                else:
+                    result[k] = v
+                json.dumps(result[k])
         return result
 
     def to_json(self):
