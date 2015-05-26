@@ -76,7 +76,6 @@ class Model(object):
     def to_dict(self, json_compatible=False):
         result = {}
         for k, v in self.get_fields_data():
-            print(k)
             if isinstance(v, list):
                 result[k] = [el.to_dict(json_compatible) for el in v]
                 json.dumps(result[k])
