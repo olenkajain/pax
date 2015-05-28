@@ -13,11 +13,13 @@ import pymongo
 from pax import plugin
 import numpy
 import operator
+from bson.json_util import loads
+from bson.objectid import ObjectId
 
 
 def get_bin(bin_value, num_bins, min_bin, max_bin):
 
-    """Gets which bin the thing falls in. Overflow bin is MAX, underflow is 0.
+    """ Gets which bin an entry falls into. Overflow bin is MAX, underflow is 0.
     """
 
     bin_size = (max_bin - min_bin) / num_bins
@@ -28,7 +30,7 @@ def get_bin(bin_value, num_bins, min_bin, max_bin):
     if bin_number < 0:
         bin_number = 0
 
-    yield bin_number
+    return int(bin_number)
 
 
 class OnlineMonitorOutput(plugin.OutputPlugin):
@@ -52,13 +54,12 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
             self.log.exception(e)
             raise
 
-        # See config file. Has form: { "name": string, "type": string, "xaxis:" { "name", "var", "min", "max", "bins" },
-        # "yaxis" : {"name", if 2d also var, min, max, bins }, "data": [ either x1, x2, ... or [x1,y1],[x2,y2], ...]}
+        # This is a list of dicts. Each dict is a histogram.
         self.aggregates = self.config['aggregates']
 
     def write_event(self, event):
 
-        self.write_complete_event(event)
+        #self.write_complete_event(event)
         self.update_aggregate_docs(event)
 
     def write_complete_event(self, event):
@@ -66,7 +67,14 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
         """ Dump entire event to BSON and save in mongodb
         """
 
-        self.event_collection.insert(event)
+        # Some events will be too large. Waveforms are mostly zeros. We can compress them by removing zeros.
+        smaller = self.compress_event(loads(event.to_json()))
+        try:
+            self.event_collection.insert(smaller)
+        except Exception as e:
+            self.log.warn("Error inserting a waveform doc. Likely that it is too large (16MB limit)")
+            self.log.exception(e)
+
         return
 
     def update_aggregate_docs(self, event):
@@ -78,20 +86,35 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
         for histogram_definition in self.aggregates:
 
             # Take a look if a doc for this plot exists. If not make one.
-            query = {"name": histogram_definition['name'], "run": histogram_definition['run']}
+            query = {"name": histogram_definition['name'], "run": event.dataset_name}
             if self.aggregate_collection.find_one(query) is None:
 
                 # The doc is just the definition plus the run name plus and array of zeroes for the bins
                 insert_doc = histogram_definition
                 insert_doc['run'] = event.dataset_name
 
+                # Replace the axis definition with actual numbers in case they are expressions
+                insert_doc['xaxis']['bins'] = eval(str(insert_doc['xaxis']['bins']))
+                insert_doc['xaxis']['min'] = eval(str(insert_doc['xaxis']['min']))
+                insert_doc['xaxis']['max'] = eval(str(insert_doc['xaxis']['max']))
+
                 # Types are 'h1', 'h2', and 'scatter'
-                if insert_doc['type'][0] == 'h1':
-                    insert_doc['data'] = [0]*insert_doc['xaxis']['bins']
-                if insert_doc['type'] == 'h2':
-                    insert_doc['data'] = numpy.zeros((insert_doc['xaxis']['bins'], insert_doc['yaxis']['bins']))
-                if insert_doc['type'] == 'scatter':
-                    insert_doc['data'] = []
+                if insert_doc['type'] == 'h1':
+                    insert_doc['data'] = numpy.zeros(insert_doc['xaxis']['bins'],
+                                                     dtype=int).tolist()
+
+                else:
+
+                    # Evaluate axis labels
+                    insert_doc['yaxis']['bins'] = eval(str(insert_doc['yaxis']['bins']))
+                    insert_doc['yaxis']['min'] = eval(str(insert_doc['yaxis']['min']))
+                    insert_doc['yaxis']['max'] = eval(str(insert_doc['yaxis']['max']))
+
+                    if insert_doc['type'] == 'h2':
+                        insert_doc['data'] = numpy.zeros((insert_doc['xaxis']['bins'],
+                                                          insert_doc['yaxis']['bins']), dtype=int).tolist()
+                    if insert_doc['type'] == 'scatter':
+                        insert_doc['data'] = dict(x=[], y=[])
 
                 self.aggregate_collection.insert(insert_doc)
 
@@ -101,38 +124,131 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
             if doc is None:
                 raise RuntimeError("Cannot find MongoDB doc corresponding to requested aggregate plot.")
 
-            # The actual logic for the insertion varies depending on if we have a 1d hist, 2d hist, or scatter plot
-            xgetter = operator.attrgetter(doc['xaxis']['var'])
-            try:
-                x_value = xgetter(event)
-            except:
-                self.log.fatal("Invalid x variable: " + doc['xaxis']['var'] + " given in aggregate plot options.")
-                raise
+            entries = self.get_entry_list(event, doc)
 
             # For 1D histograms get the bin value and increment, then continue. No need to look at y-values.
             if doc['type'] == 'h1':
-                binx = get_bin(x_value, doc['xaxis']['nbins'], doc['xaxis']['start'], doc['xaxis']['end'])
-                self.aggregate_collection.update({doc: '_id'}, {"$inc": {"data." + str(binx): 1}})
+                for entry in entries:
+                    binx = get_bin(entry, doc['xaxis']['bins'], doc['xaxis']['min'], doc['xaxis']['max'])
+                    self.aggregate_collection.update({"_id": ObjectId(doc["_id"])},
+                                                     {"$inc": {"data." + str(binx): 1}})
                 continue
-
-            # 2D histos and scatter plots need y value
-            ygetter = operator.attrgetter(doc['yaxis']['var'])
-            try:
-                y_value = ygetter(event)
-            except:
-                self.log.fatal("Invalid y variable: " + doc['yaxis']['var'] + " given in aggregate plot options.")
-                raise
 
             # For scatters simply append the point to a list
             if doc['type'] == 'scatter':
-                self.aggregate_collection.update({doc: '_id'}, {"$push": {"data", [x_value, y_value]}})
+                for val in entries['x']:
+                    if 'suppress_zero' in doc['xaxis'].keys() and doc['xaxis']['suppress_zero'] is True and val == 0:
+                        continue
+                    if type(val).__module__ == numpy.__name__:
+                        val = val.item()
+                    try:
+                        self.aggregate_collection.update({"_id": doc['_id']}, {"$push": {"data.x": val}})
+                    except:
+                        break
+                for val in entries['y']:
+                    if 'suppress_zero' in doc['yaxis'].keys() and doc['yaxis']['suppress_zero'] is True and val == 0:
+                        continue
+                    if type(val).__module__ == numpy.__name__:
+                        val = val.item()
+                    try:
+                        self.aggregate_collection.update({"_id": doc['_id']}, {"$push": {"data.y": val}})
+                    except:
+                        break
+
+
                 continue
 
             # For 2D histos do a slightly more complicated thing as was done for 1D
             if doc['type'] == 'h2':
-                binx = get_bin(x_value, doc['xaxis']['nbins'], doc['xaxis']['start'], doc['xaxis']['end'])
-                biny = get_bin(y_value, doc['yaxis']['nbins'], doc['yaxis']['start'], doc['yaxis']['end'])
-                self.aggregate_collection.update({doc: '_id'}, {"$inc": {"data." + str(binx) + "." + str(biny): 1}})
+                for entry in entries:
+                    binx = get_bin(entry[0], doc['xaxis']['bins'], doc['xaxis']['min'], doc['xaxis']['max'])
+                    biny = get_bin(entry[1], doc['yaxis']['bins'], doc['yaxis']['min'], doc['yaxis']['max'])
+                    self.aggregate_collection.update({"_id": doc['_id']},
+                                                     {"$inc": {"data." + str(binx) + "." + str(biny): 1}})
                 continue
-
         return
+
+    def get_entry_list(self, event, doc):
+
+        """ Returns a list of entries for direct insertion
+        """
+
+        # Get x data. For 1D hist just return this
+        x = self.get_data(doc['xaxis']['type'], doc['xaxis']['value'], event)
+        if doc['type'] == 'h1':
+            return x
+
+        # For 2D things get y data too
+        y = self.get_data(doc['yaxis']['type'], doc['yaxis']['value'], event)
+
+        # Both should be the same length, otherwise we fail
+        if len(x) != len(y):
+            raise RuntimeError("x and y variable for online monitor plot must have same number of entries")
+        if doc['type'] == 'h2':
+            return zip(x, y)
+        return dict(x=x, y=y)
+
+    def get_data(self, value_type, value, event):
+
+        """ Helps out by getting the data from the event object. Returns as an array.
+        """
+
+        # Attribute types are gotten directly (doesn't handle arrays)
+        if value_type == 'attr':
+            getter = operator.attrgetter(value)
+
+            try:
+                vals = getter(event)
+            except:
+                self.log.error("Invalid variable: " + value + " given in aggregate plot config.")
+                raise
+
+        # If it's more complicated we use an expression
+        elif value_type == 'expr':
+
+            try:
+                vals = eval(value)
+            except:
+                self.log.warn("Invalid expression given for eval")
+                return []
+        else:
+            raise RuntimeError("Unknown variable type " + value_type + " provided in aggregate plot config")
+
+        # This function always returns an array but can handle expressions giving either arrays or values
+        arr = []
+        if type(vals) in [list, tuple, numpy.ndarray, dict]:
+            arr = vals
+        else:
+            arr.append(vals)
+        return arr
+
+    def compress_event(self, event):
+
+        """ Compresses an event by suppressing zeros in waveform in a way the frontend will understand
+            Format is the char 'zn' where 'z' is a char and 'n' is the number of following zero bins
+        """
+
+        for x in range(0, len(event['sum_waveforms'])):
+
+            waveform = event['sum_waveforms'][x]['samples']
+            zeros = 0
+            ret = []
+
+            for i in range(0, len(waveform)):
+                if waveform[i] == 0:
+                    zeros += 1
+                    continue
+                else:
+                    if zeros != 0:
+                        ret.append('z')
+                        ret.append(str(zeros))
+                        zeros = 0
+                    ret.append(str(waveform[i]))
+            if zeros != 0:
+                ret.append('z')
+                ret.append(str(zeros))
+            event['sum_waveforms'][x]['samples'] = ret
+
+        # Unfortunately we also have to remove the pulses or some events are huge
+        del event['pulses']
+        return event
