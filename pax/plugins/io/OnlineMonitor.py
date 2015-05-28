@@ -15,7 +15,11 @@ import numpy
 import operator
 from bson.json_util import loads
 from bson.objectid import ObjectId
-
+from pax.plugins.plotting.Plotting import PlotEventSummary
+import matplotlib.pyplot as plt
+import pickle
+import time
+from pax import units
 
 def get_bin(bin_value, num_bins, min_bin, max_bin):
 
@@ -46,6 +50,7 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
             self.database = self.client[self.config['database']]
             self.event_collection = self.database[self.config['event_collection']]
             self.aggregate_collection = self.database[self.config['aggregate_collection']]
+            self.plot_collection = self.database[self.config['plot_collection']]
 
             # Configure collections based on .ini file properties
 
@@ -61,6 +66,7 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
 
         #self.write_complete_event(event)
         self.update_aggregate_docs(event)
+        self.write_plot_collection(event)
 
     def write_complete_event(self, event):
 
@@ -75,6 +81,46 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
             self.log.warn("Error inserting a waveform doc. Likely that it is too large (16MB limit)")
             self.log.exception(e)
 
+        return
+
+    def write_plot_collection(self, event):
+
+        # This is easiest if we instantiate a plot object (we want to make the display and pickle it)
+
+        # We need a 'fake' config file
+        fake_config = { 'output_dir': None,
+                        'size_multiplier': 3.5,
+                        #"horizontal_size_multiplier": 1,
+                        'plot_largest_peaks': True,
+                        'log_scale_entire_event': False,
+                        'log_scale_s2': False,
+                        'log_scale_s1': False,'waveforms_to_plot': (
+                            {'internal_name': 'tpc',      'plot_label': 'TPC (hits only)',
+                                'drawstyle': 'steps', 'color':'black'},
+                            {'internal_name': 'tpc_raw',  'plot_label': 'TPC (raw)',
+                                'drawstyle': 'steps', 'color':'black', 'alpha': 0.3},
+                            {'internal_name': 'veto',     'plot_label': 'Veto (hits only)',
+                                'drawstyle': 'steps', 'color':'red'},
+                            {'internal_name': 'veto_raw', 'plot_label': 'Veto (raw)',
+                                'drawstyle': 'steps', 'color':'red', 'alpha': 0.2})}
+        config_total = self.config.copy()
+        config_total.update(fake_config)
+        plotter = PlotEventSummary(processor=self.processor, config_values=config_total)
+        plotter.plot_event(event=event)
+        plot = plt.gcf()
+        # save as pickle in doc
+        binary = pickle.dumps(plot)
+        trigger_time_ns = (event.start_time + self.config.get('trigger_time_in_event', 0)) / units.ns
+        print(trigger_time_ns)
+        timestring = time.strftime("%Y/%m/%d, %H:%M:%S", time.gmtime(trigger_time_ns / 10 ** 9))
+        print(timestring)
+
+        try:
+            self.plot_collection.insert({'data': binary, 'run_name': event.dataset_name,
+                                         'event_date': timestring,
+                                         'event_number': event.event_number })
+        except:
+            self.log.warn("BSON document for event display too big!")
         return
 
     def update_aggregate_docs(self, event):
