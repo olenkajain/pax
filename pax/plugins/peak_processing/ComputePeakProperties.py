@@ -3,7 +3,6 @@ from pax import plugin, utils
 
 
 class BasicProperties(plugin.TransformPlugin):
-
     """Computes basic peak properies such as area and hit time spread ("width")
     """
 
@@ -63,7 +62,6 @@ class BasicProperties(plugin.TransformPlugin):
 
 
 class HitpatternSpread(plugin.TransformPlugin):
-
     """Computes the weighted root mean square deviation of the top and bottom hitpattern for each peak
     """
 
@@ -103,4 +101,20 @@ class HitpatternSpread(plugin.TransformPlugin):
 
                 setattr(peak, '%s_hitpattern_spread' % array, np.sqrt(weighted_var))
 
+        return event
+
+class SortPeaks(plugin.TransformPlugin):
+    """Sort the peaks according to predefined order
+
+    This is useful for analyzing the data once it's written to disk.
+    """
+
+    def startup(self):
+        self.sort_key = self.config['sort_key']
+        self.sort_reverse = self.config['sort_reverse']  # Sort order
+
+    def transform_event(self, event):
+        event.peaks = sorted(event.peaks,
+                             key=lambda x: getattr(x, self.sort_key),
+                             reverse=self.sort_reverse)
         return event
