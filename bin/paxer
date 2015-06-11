@@ -234,11 +234,13 @@ else:  # Parallel processing
 
     # Enqueue jobs
     events = []
-    n = 100
+    n = 10
     input_count = 0
     for event in p.get_events():
         events.append(event)
         input_count += 1
+        if input_count >= 100:
+            break
         if len(events) > n:
             tasks.put(events)
             status(input_count, tasks, results)
