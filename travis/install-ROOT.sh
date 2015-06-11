@@ -3,7 +3,7 @@
 
 if [ -z "$ROOT" ]; then
     echo "ROOT version not set.  Making guess"
-    export ROOT=6.03.04
+    export ROOT=6.04.00
 fi  
 
 if [ "${TRAVIS_OS_NAME}" == "linux" ]

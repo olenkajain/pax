@@ -131,7 +131,8 @@ class InterpolatingMap(object):
         """Returns the value of the map map_name at a ReconstructedPosition
          position - pax.datastructure.ReconstructedPosition instance
         """
-        return self.get_value(*[getattr(position, q[0]) for q in self.coordinate_system], map_name=map_name)
+        return self.get_value(*[getattr(position, q[0]) for q in self.coordinate_system],
+                              map_name=map_name)
 
     def get_value(self, *coordinates, map_name='map'):
         """Returns the value of the map at the position given by coordinates"""
