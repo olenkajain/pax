@@ -35,7 +35,9 @@ class ROOTClass(plugin.OutputPlugin):
         # by python, avoiding segfaults when garbage collecting
         ROOT.TTree.__init__._creates = False
 
-        self.f = ROOT.TFile(self.config['output_name'],
+        output_name = self.config['output_name']
+
+        self.f = ROOT.TFile(output_name,
                             "RECREATE")
         self.t = None
 
@@ -106,6 +108,11 @@ vector <Peak> dummy;
 
         self.log.debug(("C++ class",
                         self.cpp_string % peak_string))
+
+        if self.output_name.endswith('.root'):
+            f_class = open(self.output_name[:-5] + '.C', 'w')
+            f_class.write(self.cpp_string % peak_string)
+            f_class.close()
         ROOT.gROOT.ProcessLine(self.cpp_string % peak_string)
         self.peaks = ROOT.vector('Peak')()
         self.t.Branch('peaks', self.peaks)
