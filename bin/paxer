@@ -33,7 +33,7 @@ class ProcessorEvents(multiprocessing.Process):
         p = core.Processor(config_names=self.config_names,
                            config_paths=self.config_path,
                            config_dict=self.config_dict)
-        
+
         while True:
             next_events = self.task_queue.get()
             answer = []
@@ -53,11 +53,11 @@ class ProcessorEvents(multiprocessing.Process):
 
 class OutputEvents(multiprocessing.Process):
 
-    def __init__(self, task_queue, result_queue, 
+    def __init__(self, task_queue, result_queue,
                  input_done, process_done, output_done,
                  config_names, config_path, config_dict):
         multiprocessing.Process.__init__(self)
-        
+
         self.task_queue = task_queue
         self.result_queue = result_queue
 
@@ -76,10 +76,10 @@ class OutputEvents(multiprocessing.Process):
 
         while True:
             can_end = self.input_done.is_set() and self.process_done.is_set()
-            print(self.input_done.is_set(),
-                  self.process_done.is_set(),
-                  self.output_done.is_set())
-            print('blocks waiting input:', self.task_queue.qsize(),
+            print('input_done:', self.input_done.is_set(),
+                  'process_done:', self.process_done.is_set(),
+                  'output_done:', self.output_done.is_set(),
+                  'blocks waiting input:', self.task_queue.qsize(),
                   'blocks waiting output:', self.result_queue.qsize())
             try:
                 next_events = self.result_queue.get(block=True,
@@ -90,14 +90,14 @@ class OutputEvents(multiprocessing.Process):
                         p.process_event(event)
                 self.result_queue.task_done()
 
-            except queue.Empty as e:  
+            except queue.Empty as e:
                 if can_end:
                     self.output_done.set()
                     p.shutdown()
                     break
                 else:
                     continue
-        print('bye')
+
         return
 
 parser = argparse.ArgumentParser(description="Process XENON data")
@@ -238,7 +238,7 @@ else:  # Parallel processing
     process_done = multiprocessing.Event()
     output_done = multiprocessing.Event()
 
-    # Establish communication queues 
+    # Establish communication queues
     tasks = multiprocessing.JoinableQueue()
     results = multiprocessing.JoinableQueue()
 
@@ -246,12 +246,12 @@ else:  # Parallel processing
     num_consumers = args.cpus
     p.log.info('Creating %d consumers',
                num_consumers)
-    consumers = [ProcessorEvents(tasks, results, 
+    consumers = [ProcessorEvents(tasks, results,
                                  input_done, process_done, output_done,
                                  args.config,
                                  args.config_path,
                                  config_dict=copy.deepcopy(override_dict)) for _ in range(num_consumers)]
-    
+
     override_dict['pax']['plugin_group_names'] = ['output']
     consumer_output = OutputEvents(tasks, results,
                                    input_done, process_done, output_done,
@@ -266,12 +266,9 @@ else:  # Parallel processing
     # Enqueue jobs
     events = []
     n = 10 # chunk in threads (TODO: what is best n?)
-    input_count = 0
+
     for event in p.get_events():
         events.append(event)
-        input_count += 1
-        if input_count >= 100:
-            break
         if len(events) > n:
             tasks.put(events)
             events = []
