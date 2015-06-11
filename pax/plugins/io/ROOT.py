@@ -35,8 +35,7 @@ class ROOTClass(plugin.OutputPlugin):
         # by python, avoiding segfaults when garbage collecting
         ROOT.TTree.__init__._creates = False
 
-        self.log.fatal('wtf')
-        self.f = ROOT.TFile("output.root",
+        self.f = ROOT.TFile(self.config['output_name'],
                             "RECREATE")
         self.t = None
 
@@ -86,13 +85,11 @@ vector <Peak> dummy;
         for name, value in event.get_fields_data():
 
             if type(value) == int:
-                self.log.fatal(('yes', type(value)))
                 self.branch_buffers[name] = np.zeros(1, np.int32)
                 self.t.Branch(name,
                               self.branch_buffers[name],
                                                  name + '/I')
             elif type(value) == float:
-                self.log.fatal(('yes', type(value)))
                 self.branch_buffers[name] = np.zeros(1, np.float32)
                 self.t.Branch(name,
                               self.branch_buffers[name],
@@ -106,11 +103,9 @@ vector <Peak> dummy;
                     elif isinstance(value2, str):
                         peak_string += "string " + name2 + ";\n"
 
-                    #if name2 == 'reconstructedposition':
 
-            else:
-                self.log.fatal(('no', type(value)))
-
+        self.log.debug(("C++ class",
+                        self.cpp_string % peak_string))
         ROOT.gROOT.ProcessLine(self.cpp_string % peak_string)
         self.peaks = ROOT.vector('Peak')()
         self.t.Branch('peaks', self.peaks)
