@@ -227,16 +227,19 @@ else:  # Parallel processing
 
     # Enqueue jobs
     events = []
+    n = 100
     for event in p.get_events():
         events.append(event)
-        if len(events) > 1:
+        if len(events) > n:
             tasks.put(events)
-            print(tasks.qsize(), results.qsize())
+            print('blocks waiting input:', tasks.qsize(),
+                  'blocks waiting output:', results.qsize())
             events = []
     else:
         if len(events):
             tasks.put(events)
-    print(tasks.qsize(), results.qsize())
+    print('blocks waiting input:', tasks.qsize(),
+          'blocks waiting output:', results.qsize())
     p.shutdown()
 
     # Add a poison pill for each consumer
@@ -246,13 +249,15 @@ else:  # Parallel processing
     # Wait for all of the tasks to finish
 
     while not tasks.empty():
-        print(tasks.qsize(), results.qsize())
+        print('blocks waiting input:', tasks.qsize(),
+              'blocks waiting output:', results.qsize())
 
     tasks.join()
     results.put(None)
 
     while not results.empty():
-        print(tasks.qsize(), results.qsize())
+        print('blocks waiting input:', tasks.qsize(),
+              'blocks waiting output:', results.qsize())
     results.join()
 
     print("Done")
