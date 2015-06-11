@@ -85,7 +85,7 @@ class OutputEvents(multiprocessing.Process):
                   'output_done:', self.output_done.is_set(),
                   'blocks waiting input:', self.task_queue.qsize(),
                   'blocks waiting output:', self.result_queue.qsize())
-            print(self.i, self.n, self.i/self.n)
+            print('processed', self.i, 'of', self.n, '%f' % (100*self.i/self.n))
             try:
                 next_events = self.result_queue.get(block=True,
                                                     timeout=1) # second
@@ -261,9 +261,9 @@ else:  # Parallel processing
     override_dict['pax']['plugin_group_names'] = ['output']
     consumer_output = OutputEvents(tasks, results,
                                    input_done, process_done, output_done,
+                                   p.input_plugin.number_of_events,
                                    args.config,
                                    args.config_path,
-                                   p.input_plugin.number_of_events,
                                    config_dict=copy.deepcopy(override_dict))
 
     # Start all worker threads
