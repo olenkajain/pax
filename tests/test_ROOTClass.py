@@ -27,7 +27,7 @@ class TestROOTClass(unittest.TestCase):
         try:
             p.run()
         except Exception as e:
-            p.stop()
+            p.shutdown()
             raise e
 
         # Cleaning up the temporary dir explicitly (otherwise tempfile gives warning):

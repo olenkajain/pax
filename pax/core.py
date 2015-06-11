@@ -478,10 +478,10 @@ class Processor:
         # Shutdown all plugins now -- don't wait until this Processor instance gets deleted
         if clean_shutdown:
             self.log.debug("Shutting down all plugins...")
-            self.stop()
+            self.shutdown()
 
     # Call shutdown on all plugins
-    def stop(self):
+    def shutdown(self):
         self.log.debug("Shutting down all plugins...")
         if self.input_plugin is not None:
             self.log.debug("Shutting down %s..." % self.input_plugin.name)
