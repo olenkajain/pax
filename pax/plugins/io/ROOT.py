@@ -35,9 +35,9 @@ class ROOTClass(plugin.OutputPlugin):
         # by python, avoiding segfaults when garbage collecting
         ROOT.TTree.__init__._creates = False
 
-        output_name = self.config['output_name']
+        self.output_name = self.config['output_name']
 
-        self.f = ROOT.TFile(output_name,
+        self.f = ROOT.TFile(self.output_name,
                             "RECREATE")
         self.t = None
 
