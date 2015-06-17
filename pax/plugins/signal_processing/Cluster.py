@@ -6,7 +6,6 @@ from pax import plugin, datastructure, utils
 
 
 class ClusterPlugin(plugin.TransformPlugin):
-
     """Base plugin for clustering
 
     Individual channel peaks into groups, and labels them as noise / lone_pulse / unknown
@@ -177,7 +176,6 @@ class ClusterPlugin(plugin.TransformPlugin):
 
 
 class MeanShift(ClusterPlugin):
-
     """Clusters hits using mean-shift algorithm
 
     http://en.wikipedia.org/wiki/Mean_shift
@@ -273,7 +271,6 @@ class MeanShift(ClusterPlugin):
 
 
 class HitDifference(ClusterPlugin):
-
     """Clusters hits based on times between their maxima
     If any hit maximum is separated by more than max_difference from the next,
     it starts a new cluster.
@@ -285,13 +282,13 @@ class HitDifference(ClusterPlugin):
                                      return_indices=True)
 
 
-class GapSize(ClusterPlugin):
 
+
+class GapSize(ClusterPlugin):
     """Clusters hits based on gaps = times not covered by any hits.
     Any gap longer than max_gap_size starts a new cluster.
     Difference with HitDifference: this takes interval nature of hits into account
     """
-
     def startup(self):
         super().startup()
         # Convert gap threshold to samples (is in time (ns) in config)
@@ -300,7 +297,7 @@ class GapSize(ClusterPlugin):
         self.transition_point = self.config['transition_point']
 
     def cluster_hits(self, hits):
-        # If a hit has a left > this, it will form a new cluster
+        # If the next hit starts at a sample > this, start a new cluster
         boundary = -999999999
         clusters = []
         for i, hit in enumerate(hits):
@@ -318,10 +315,63 @@ class GapSize(ClusterPlugin):
             area += hit.area
 
             # Can we start applying the tighter threshold?
-            # if area > self.transition_point:
-            #     # Yes, there's no chance this is a single electron: use a tighter clustering boundary
-            #     gap_size_threshold = self.small_gap_threshold
+            if area > self.transition_point:
+                # Yes, there's no chance this is a single electron: use a tighter clustering boundary
+                gap_size_threshold = self.small_gap_threshold
 
             # Extend the boundary at which a new clusters starts, if needed
             boundary = max(boundary, hit.right + gap_size_threshold)
         return clusters
+
+class GapSize_s1trigger(ClusterPlugin):
+    """Clusters hits based on gaps = times not covered by any hits.
+    Any gap longer than max_gap_size starts a new cluster.
+    Difference to normal GapSize algorithim is a separation of the time window before and after the trigger,in order to account for S1 and    
+    S2 specialities, which only works (and is tested) for huge S1s fulfilling the triggering condition (Kr83m calibration e.g.)
+    """
+    def startup(self):
+        super().startup()
+        # Convert gap threshold to samples (is in time (ns) in config)
+        self.large_gap_threshold = self.config['large_gap_threshold'] / self.dt
+        self.small_gap_threshold = self.config['small_gap_threshold'] / self.dt
+        self.transition_point = self.config['transition_point']
+
+    def cluster_hits(self, hits):
+        # If a hit has a left > this, it will form a new cluster
+        boundary = -999999999
+        clusters = []
+        for i, hit in enumerate(hits):
+           if hit.index_of_maximum <= 21000:
+            if hit.left > boundary:
+                # Hit starts after current boundary: new cluster
+                clusters.append([])
+                # (Re)set area and thresholds
+                area = 0
+                gap_size_threshold = self.small_gap_threshold
+                boundary = hit.right + gap_size_threshold
+                
+            # Add this hit to the cluster
+            clusters[-1].append(i)
+            area += hit.area
+            
+            # Extend the boundary at which a new clusters starts, if needed
+            boundary = max(boundary,hit.right + gap_size_threshold)
+      
+           if hit.index_of_maximum > 21002:
+            if hit.left > boundary:
+                # Hit starts after current boundary: new cluster
+                clusters.append([])
+                # (Re)set area and thresholds
+                area = 0
+                gap_size_threshold = self.large_gap_threshold
+                boundary = hit.right + gap_size_threshold
+
+            # Add this hit to the cluster
+            clusters[-1].append(i)
+            area += hit.area
+
+            # Extend the boundary at which a new clusters starts, if needed
+            boundary = max(boundary, hit.right + gap_size_threshold)
+            
+        return clusters
+
