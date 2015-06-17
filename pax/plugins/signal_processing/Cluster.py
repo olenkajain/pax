@@ -357,7 +357,7 @@ class GapSize_s1trigger(ClusterPlugin):
             # Extend the boundary at which a new clusters starts, if needed
             boundary = max(boundary,hit.right + gap_size_threshold)
       
-           if hit.index_of_maximum > 21001:
+           if hit.index_of_maximum > 21002:
             if hit.left > boundary:
                 # Hit starts after current boundary: new cluster
                 clusters.append([])
