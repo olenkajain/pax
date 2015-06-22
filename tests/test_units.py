@@ -10,7 +10,6 @@ from pax import units
 
 
 class TestPaxUnits(unittest.TestCase):
-
     def test_parsing(self):
         self.assertAlmostEqual(units.Ohm, 1.6021765699999998e-10)
 
@@ -44,6 +43,7 @@ class TestPaxUnits(unittest.TestCase):
         for (name, value) in list(base_units.items()):
             for (p_name, p_factor) in list(prefixes.items()):
                 self.assertEqual(getattr(units, p_name + name), float(10 ** (p_factor) * value))
+
 
 if __name__ == '__main__':
     unittest.main()
