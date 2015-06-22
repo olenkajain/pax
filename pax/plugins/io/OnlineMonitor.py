@@ -64,7 +64,7 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
 
     def write_event(self, event):
 
-        #self.write_complete_event(event)
+        self.write_complete_event(event)
         self.update_aggregate_docs(event)
         self.write_plot_collection(event)
 
@@ -87,10 +87,9 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
 
         # This is easiest if we instantiate a plot object (we want to make the display and pickle it)
 
-        # We need a 'fake' config file
+        # We need a 'fake' config file because we want to use pax plotting but don't necessarily have all options
         fake_config = { 'output_dir': None,
-                        'size_multiplier': 3.5,
-                        #"horizontal_size_multiplier": 1,
+                        'size_multiplier': 4,
                         'plot_largest_peaks': True,
                         'log_scale_entire_event': False,
                         'log_scale_s2': False,
@@ -105,15 +104,16 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
                                 'drawstyle': 'steps', 'color':'red', 'alpha': 0.2})}
         config_total = self.config.copy()
         config_total.update(fake_config)
+
         plotter = PlotEventSummary(processor=self.processor, config_values=config_total)
         plotter.plot_event(event=event)
         plot = plt.gcf()
-        # save as pickle in doc
+
+        # save as pickle in doc. Fails is pickle is too big
         binary = pickle.dumps(plot)
         trigger_time_ns = (event.start_time + self.config.get('trigger_time_in_event', 0)) / units.ns
         print(trigger_time_ns)
         timestring = time.strftime("%Y/%m/%d, %H:%M:%S", time.gmtime(trigger_time_ns / 10 ** 9))
-        print(timestring)
 
         try:
             self.plot_collection.insert({'data': binary, 'run_name': event.dataset_name,
