@@ -8,7 +8,7 @@ import os
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # noqa
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle   # noqa
 import numpy as np
 
 import time
@@ -358,6 +358,13 @@ class PlotChannelWaveforms2D(PlotBase):
         dt = self.config['sample_duration']
         time_scale = dt / units.us
 
+        c = self.config
+        adc_to_e = c['sample_duration'] * c['digitizer_voltage_range'] / (
+            2 ** (c['digitizer_bits']) *
+            c['pmt_circuit_load_resistor'] *
+            c['external_amplification'] *
+            units.electron_charge)
+
         # TODO: change from lines to squares
         for pulse in event.pulses:
             if pulse.maximum is None:
@@ -366,13 +373,28 @@ class PlotChannelWaveforms2D(PlotBase):
                 continue
 
             # Choose a color for this pulse based on amplitude
-            # color_factor = np.clip(np.log10(oc.height) / 2, 0, 1)
-            color_factor = 0
+            color_factor = np.clip(np.log10(pulse.maximum) / 2, 0, 1)
 
-            plt.gca().add_patch(Rectangle((pulse.left * time_scale, pulse.channel), pulse.length * time_scale, 1,
-                                          facecolor=plt.cm.gnuplot2(color_factor),
-                                          edgecolor='none',
-                                          alpha=0.5))
+            gain = self.config['gains'][pulse.channel]
+            if gain == 0:
+                gain = 2e6
+                color = 'green'
+            else:
+                color = plt.cm.Greys(max(0.4, color_factor))
+
+            baseline_to_subtract = self.config['digitizer_reference_baseline'] + pulse.baseline
+            w = baseline_to_subtract - pulse.raw_data.astype(np.float64)
+            w *= -1    # wtf?
+            w *= adc_to_e / gain
+
+            plt.plot(np.linspace(pulse.left * time_scale, pulse.right * time_scale, pulse.length),
+                     pulse.channel + w / 10,
+                     c=color,
+                     drawstyle='steps')
+            # plt.gca().add_patch(Rectangle((pulse.left * time_scale, pulse.channel), pulse.length * time_scale, 1,
+            #                               facecolor=plt.cm.gnuplot2(color_factor),
+            #                               edgecolor='none',
+            #                               alpha=0.5))
 
         # Plot the channel peaks as dots
         self.log.debug('Plotting channel peaks...')
