@@ -347,8 +347,7 @@ class Simulator(object):
 
                     # Start with a delta function single photon pulse, then convolve with one actual single-photon pulse
                     # This effectively assumes photons always arrive at the start of a digitizer t-bin,
-                    # and also
-                    # but is much faster
+                    # and also ignores gain variations, but is much faster
 
                     # Division by dt necessary for charge -> current
                     unique, counts = np.unique(center_index - start_index, return_counts=True)
@@ -526,7 +525,6 @@ class SimulatedHitpattern(object):
 
     def __add__(self, other):
         # Don't reuse __init__, we don't want another TTS correction..
-        # TODO: hm, maybe we shouldn't do TTS correction here?
         # print("add called self=%s, other=%s" % (type(self), type(other)))
         self.min = min(self.min, other.min)
         self.max = max(self.max, other.max)
