@@ -4,7 +4,6 @@ from pax import plugin, utils
 
 
 class BasicProperties(plugin.TransformPlugin):
-
     """Computes basic peak properies such as area and hit time spread ("width")
     """
 
@@ -29,13 +28,13 @@ class BasicProperties(plugin.TransformPlugin):
             peak.area = np.sum(peak.area_per_channel)
 
             # Compute top fraction
-            peak.area_fraction_top = np.sum(peak.area_per_channel[:self.last_top_ch + 1])/peak.area
+            peak.area_fraction_top = np.sum(peak.area_per_channel[:self.last_top_ch + 1]) / peak.area
 
             # Compute timing quantities
             times = [s.center for s in peak.hits]
             peak.hit_time_mean, peak.hit_time_std = utils.weighted_mean_variance(times,
                                                                                  [s.area for s in peak.hits])
-            peak.hit_time_std **= 0.5   # Convert variance to std
+            peak.hit_time_std **= 0.5  # Convert variance to std
 
             # Compute mean amplitude / noise
             if event.event_number == 198:
@@ -46,8 +45,8 @@ class BasicProperties(plugin.TransformPlugin):
                     pass
             try:
                 peak.mean_amplitude_to_noise = np.average([hit.height / hit.noise_sigma for hit in peak.hits],
-                                                      weights=hit_areas)
-            except (ZeroDivisionError) as e:
+                                                          weights=hit_areas)
+            except ZeroDivisionError:
                 pass
 
             # Compute central ranges
@@ -72,7 +71,6 @@ class BasicProperties(plugin.TransformPlugin):
 
 
 class HitpatternSpread(plugin.TransformPlugin):
-
     """Computes the weighted root mean square deviation of the top and bottom hitpattern for each peak
     """
 
