@@ -11,6 +11,8 @@ from pax import datastructure
 from pax.FolderIO import InputFromFolder, WriteToFolder
 
 
+
+
 ##
 # JSON
 ##
@@ -54,7 +56,6 @@ class WriteJSON(WriteToFolder):
 ##
 
 class ReadBSON(InputFromFolder):
-
     """Read raw BSON data from a concatenated-BSON file or a folder of such files
     """
     file_extension = 'bson'
@@ -92,7 +93,6 @@ class WriteBSON(WriteToFolder):
 ##
 
 class ReadZippedBSON(InputFromFolder):
-
     """Read a folder of zipfiles containing gzipped BSON files
     """
     file_extension = 'zip'
@@ -115,7 +115,6 @@ class ReadZippedBSON(InputFromFolder):
 
 
 class WriteZippedBSON(WriteToFolder):
-
     """Write raw data to a folder of zipfiles containing gzipped BSONs
     """
     file_extension = 'zip'

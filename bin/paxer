@@ -18,7 +18,6 @@ from pax import core, utils
 
 
 class BaseProcess(multiprocessing.Process):
-
     """Base class for starting pax threads
     """
 
@@ -48,7 +47,6 @@ class BaseProcess(multiprocessing.Process):
 
 
 class ProcessorEvents(BaseProcess):
-
     """Thread for processing single events
 
     This thread will be fed via the task queue and report its results via the
@@ -87,7 +85,6 @@ class ProcessorEvents(BaseProcess):
 
 
 class OutputEvents(BaseProcess):
-
     """Thread for writing events to disk
 
     Typically, there should only be one Output instance since often output
@@ -171,11 +168,11 @@ def main():
         override_dict = {'pax': {}}
 
     # Feed certain command line args into pax configuration format
-    for argname, configname in (('input',      'input_name'),
-                                ('output',     'output_name'),
-                                ('log',        'logging_level'),
+    for argname, configname in (('input', 'input_name'),
+                                ('output', 'output_name'),
+                                ('log', 'logging_level'),
                                 ('stop_after', 'stop_after'),
-                                ('event',      'events_to_process')):
+                                ('event', 'events_to_process')):
         value = getattr(args, argname)
         if value is not None:
             override_dict['pax'][configname] = value

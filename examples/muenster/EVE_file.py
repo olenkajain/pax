@@ -62,8 +62,8 @@ eve_caen1724_par_t = np.dtype([
     ("zs_threshold", "<(20,8)i4"),
     ("zero_offset", "<(20,8)i4"),
 
-    ("nof_active_channels", "<20i4"),   # 0...8, number of active channels on each caen board
-    ("nof_samples", "<u4"),             # Redundant with page size? Only 512 instead of 10 ?
+    ("nof_active_channels", "<20i4"),  # 0...8, number of active channels on each caen board
+    ("nof_samples", "<u4"),  # Redundant with page size? Only 512 instead of 10 ?
     ("event_count", "<i4"),
 ])
 

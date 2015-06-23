@@ -1,4 +1,5 @@
 import numpy as np
+
 from pax import plugin, utils
 
 
@@ -37,7 +38,7 @@ class BasicProperties(plugin.TransformPlugin):
             peak.hit_time_std **= 0.5   # Convert variance to std
 
             # Compute mean amplitude / noise
-            if event.event_number== 198:
+            if event.event_number == 198:
                 pass
             hit_areas = [hit.area for hit in peak.hits]
             for hit in peak.hits:

@@ -34,8 +34,10 @@ The entry point to this code is typically via bin/event-builder.
 
 import argparse
 import logging
-import pymongo
 import time
+
+import pymongo
+
 from pax import core, units
 
 
@@ -88,11 +90,11 @@ def run():
             filename = '%s' % run_doc['name']
 
             if args.processed:
-                plugin_group_names = ['input',  'preprocessing',  'dsp',
+                plugin_group_names = ['input', 'preprocessing', 'dsp',
                                       'transform', 'output']
                 output = ['BulkOutput.BulkOutput', 'BulkOutput.BulkOutput']
             else:
-                plugin_group_names = ['input',  'preprocessing', 'output']
+                plugin_group_names = ['input', 'preprocessing', 'output']
                 output = ['BSON.WriteZippedBSON']
 
             config_names = 'eventbuilder'

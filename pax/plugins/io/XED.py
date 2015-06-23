@@ -27,7 +27,6 @@ from pax import units
 from pax.datastructure import Event, Pulse
 from pax.FolderIO import InputFromFolder
 
-
 xed_file_header = np.dtype([
     ("dataset_name", "S64"),
     ("creation_time", "<u4"),

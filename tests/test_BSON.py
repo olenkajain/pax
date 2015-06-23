@@ -77,7 +77,7 @@ class TestBSON(unittest.TestCase):
                                  [16006, 16000, 15991, 16004, 16004, 16006, 16000, 16000,
                                   15995, 16010])
 
-            pax_bson.shutdown()    # Needed to close the file in time before dir gets removed
+            pax_bson.shutdown()  # Needed to close the file in time before dir gets removed
 
         # Cleaning up the temporary dir explicitly (otherwise tempfile gives warning):
         tempdir.cleanup()

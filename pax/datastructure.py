@@ -9,11 +9,12 @@ releases.  Patch releases cannot modify this.
 """
 
 import inspect
+import math
 
 import numpy as np
 
-import math
 from pax import units
+
 
 # DO NOT use Model instead of StrictModel:
 # It improves performance, but kills serialization (numpy int types will apear in class etc)

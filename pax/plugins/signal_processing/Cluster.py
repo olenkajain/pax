@@ -282,8 +282,6 @@ class HitDifference(ClusterPlugin):
                                      return_indices=True)
 
 
-
-
 class GapSize(ClusterPlugin):
     """Clusters hits based on gaps = times not covered by any hits.
     Any gap longer than max_gap_size starts a new cluster.
@@ -323,12 +321,14 @@ class GapSize(ClusterPlugin):
             boundary = max(boundary, hit.right + gap_size_threshold)
         return clusters
 
+
 class GapSize_s1trigger(ClusterPlugin):
     """Clusters hits based on gaps = times not covered by any hits.
     Any gap longer than max_gap_size starts a new cluster.
     Difference to normal GapSize algorithim is a separation of the time window before and after the trigger,in order to account for S1 and    
     S2 specialities, which only works (and is tested) for huge S1s fulfilling the triggering condition (Kr83m calibration e.g.)
     """
+
     def startup(self):
         super().startup()
         # Convert gap threshold to samples (is in time (ns) in config)
@@ -341,37 +341,37 @@ class GapSize_s1trigger(ClusterPlugin):
         boundary = -999999999
         clusters = []
         for i, hit in enumerate(hits):
-           if hit.index_of_maximum <= 21000:
-            if hit.left > boundary:
-                # Hit starts after current boundary: new cluster
-                clusters.append([])
-                # (Re)set area and thresholds
-                area = 0
-                gap_size_threshold = self.small_gap_threshold
-                boundary = hit.right + gap_size_threshold
-                
-            # Add this hit to the cluster
-            clusters[-1].append(i)
-            area += hit.area
-            
-            # Extend the boundary at which a new clusters starts, if needed
-            boundary = max(boundary,hit.right + gap_size_threshold)
-      
-           if hit.index_of_maximum > 21002:
-            if hit.left > boundary:
-                # Hit starts after current boundary: new cluster
-                clusters.append([])
-                # (Re)set area and thresholds
-                area = 0
-                gap_size_threshold = self.large_gap_threshold
-                boundary = hit.right + gap_size_threshold
+            if hit.index_of_maximum <= 21000:
+                if hit.left > boundary:
+                    # Hit starts after current boundary: new cluster
+                    clusters.append([])
+                    # (Re)set area and thresholds
+                    area = 0
+                    gap_size_threshold = self.small_gap_threshold
+                    boundary = hit.right + gap_size_threshold
 
-            # Add this hit to the cluster
-            clusters[-1].append(i)
-            area += hit.area
+                # Add this hit to the cluster
+                clusters[-1].append(i)
+                area += hit.area
 
-            # Extend the boundary at which a new clusters starts, if needed
-            boundary = max(boundary, hit.right + gap_size_threshold)
-            
+                # Extend the boundary at which a new clusters starts, if needed
+                boundary = max(boundary, hit.right + gap_size_threshold)
+
+            if hit.index_of_maximum > 21002:
+                if hit.left > boundary:
+                    # Hit starts after current boundary: new cluster
+                    clusters.append([])
+                    # (Re)set area and thresholds
+                    area = 0
+                    gap_size_threshold = self.large_gap_threshold
+                    boundary = hit.right + gap_size_threshold
+
+                # Add this hit to the cluster
+                clusters[-1].append(i)
+                area += hit.area
+
+                # Extend the boundary at which a new clusters starts, if needed
+                boundary = max(boundary, hit.right + gap_size_threshold)
+
         return clusters
 

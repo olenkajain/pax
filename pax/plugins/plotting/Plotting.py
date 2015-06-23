@@ -5,6 +5,7 @@ Use matplotlib to display various things about the event.
 
 import random
 import os
+
 import time
 
 import matplotlib.pyplot as plt

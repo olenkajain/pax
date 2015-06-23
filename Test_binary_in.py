@@ -1,6 +1,5 @@
 __author__ = 'axel'
 import numpy as np
-from pax.plugins.io import EVE_file
 
 eve_file_header = np.dtype([
     ("byte_order", "<u4"),
@@ -96,28 +95,31 @@ def header_unpacker(raw_header):
     unpacked_header["event_size"] = raw_header[
                                         "event_size"] & 0xfffffff  # throwing leading 1010 from first header word away
     unpacked_header["board"] = (raw_header["board_res_0_pattern_channelmask"] >> 27) & 0x1f  # selecting only board bits
-    unpacked_header["res_0"] = (raw_header["board_res_0_pattern_channelmask"] >> 24) & 0x7  # will probably never be used
+    unpacked_header["res_0"] = (
+                                   raw_header[
+                                       "board_res_0_pattern_channelmask"] >> 24) & 0x7  # will probably never be used
     unpacked_header["pattern"] = (raw_header["board_res_0_pattern_channelmask"] >> 8) & 0xffff  # selecting pattern bits
-    unpacked_header["channel_mask"] = (raw_header["board_res_0_pattern_channelmask"]) & 0xff  # selecting channel mask bits
+    unpacked_header["channel_mask"] = (raw_header[
+                                           "board_res_0_pattern_channelmask"]) & 0xff  # selecting channel mask bits
     unpacked_header["reserved"] = (raw_header["reserved_eventcounter"] >> 24) & 0xff
     unpacked_header["event_counter"] = raw_header["reserved_eventcounter"] & 0xffffff
     unpacked_header["trigger_time_tag"] = raw_header["trigger_time_tag"]
     return unpacked_header
 
-#eve = EVE_file
-#eve.open("Background_150528_no_ZLE_1K_14channels.eve")
+# eve = EVE_file
+# eve.open("Background_150528_no_ZLE_1K_14channels.eve")
 
 
 
 with open("Background_150528_no_ZLE.eve", 'rb') as evefile:
-    evefile.seek(0,2)
-    filesize=evefile.tell()
-    evefile.seek(0,0)
+    evefile.seek(0, 2)
+    filesize = evefile.tell()
+    evefile.seek(0, 0)
     fmd = np.fromfile(evefile, dtype=eve_file_header, count=1)[0]
-    print(fmd['byte_order'], fmd['version'], fmd['buffsize'], fmd["timestamp"], [hex(z) for z in fmd["not_used"]  ])
+    print(fmd['byte_order'], fmd['version'], fmd['buffsize'], fmd["timestamp"], [hex(z) for z in fmd["not_used"]])
     fmd = np.fromfile(evefile, dtype=eve_event_header, count=1)[0]
     print(fmd)
-    #evefile.seek(4*856,1)
+    # evefile.seek(4*856,1)
     caenpars = np.fromfile(evefile, dtype=eve_caen1724_par_t, count=1)[0]
     print("evefile.tell(): ", evefile.tell())
     nof_signals = 0
@@ -157,29 +159,28 @@ with open("Background_150528_no_ZLE.eve", 'rb') as evefile:
     #         if i == 1:  # select trigger time tag from second board only
     #             event.start_time += event_signal_header["trigger_time_tag"]
     #    print("Hex hex: ", hex(np.fromfile(self.current_evefile, dtype=np.uint32, count=1)[0]))
-    while(evefile.tell()<filesize):
+    while (evefile.tell() < filesize):
         fmd = np.fromfile(evefile, dtype=eve_event_header, count=1)[0]
-        if fmd["event_type"]==4:
+        if fmd["event_type"] == 4:
             print("unexpected event 4")
             break
-        #print("event header: ", fmd)
+        # print("event header: ", fmd)
         fmd = np.fromfile(evefile, dtype=eve_signal_header, count=1)[0]
         unpacked_header = header_unpacker(fmd)
         print("board 1 trigger time tag: ", unpacked_header["trigger_time_tag"])
-        #print("raw signal header: ",fmd)
-        #print("unpacked header: ",unpacked_header)
-        for i in range(unpacked_header["event_size"]-4): # minus 4 because header is counted with
-            a = np.fromfile(evefile, dtype=np.uint32,count=1)[0]
+        # print("raw signal header: ",fmd)
+        # print("unpacked header: ",unpacked_header)
+        for i in range(unpacked_header["event_size"] - 4):  # minus 4 because header is counted with
+            a = np.fromfile(evefile, dtype=np.uint32, count=1)[0]
             #    print("entry:\t", i, "\t" ,a & 0x7fffffff, "\t", format(a,"#01b"),"\t",  a & 0x3fff, "\t", (a>> 16) &0x3fff)
-        fmd=np.fromfile(evefile, dtype=eve_signal_header, count=1)[0]
-        #print("raw signal header: ",fmd)
+        fmd = np.fromfile(evefile, dtype=eve_signal_header, count=1)[0]
+        # print("raw signal header: ",fmd)
         unpacked_header = header_unpacker(fmd)
         print("board 2 trigger time tag: ", unpacked_header["trigger_time_tag"])
-        #print("unpacked header: ", unpacked_header)
-        for i in range(unpacked_header["event_size"]-4): # minus 4 because header is counted with
-            a = np.fromfile(evefile, dtype=np.uint32,count=1)[0]
+        # print("unpacked header: ", unpacked_header)
+        for i in range(unpacked_header["event_size"] - 4):  # minus 4 because header is counted with
+            a = np.fromfile(evefile, dtype=np.uint32, count=1)[0]
             #    print("entry:\t", i, "\t" ,a & 0x7fffffff, "\t", format(a,"#01b"),"\t",  a & 0x3fff, "\t", (a>> 16) &0x3fff)
-        print(hex(np.fromfile(evefile,dtype=np.uint32, count=1)[0]))
+        print(hex(np.fromfile(evefile, dtype=np.uint32, count=1)[0]))
         nof_signals += 1
     print("nof signals: ", nof_signals)
-
