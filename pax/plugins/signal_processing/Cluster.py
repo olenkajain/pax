@@ -6,6 +6,7 @@ from pax import plugin, datastructure, utils
 
 
 class ClusterPlugin(plugin.TransformPlugin):
+
     """Base plugin for clustering
 
     Individual channel peaks into groups, and labels them as noise / lone_pulse / unknown
@@ -289,6 +290,7 @@ class GapSize(ClusterPlugin):
     Any gap longer than max_gap_size starts a new cluster.
     Difference with HitDifference: this takes interval nature of hits into account
     """
+
     def startup(self):
         super().startup()
         # Convert gap threshold to samples (is in time (ns) in config)

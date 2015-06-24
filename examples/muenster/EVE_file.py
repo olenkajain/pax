@@ -18,7 +18,7 @@ import numpy as np
 
 from pax import units
 from pax.datastructure import Event, Pulse
-from pax.plugins.io.FolderIO import InputFromFolder
+from pax.FolderIO import InputFromFolder
 
 """  File header provided by FPPGui. This has only to be read once. Byte order is a relict from times where "Big Endian"
 processors where not unusual. See Wikipedia "byte order" about that topic in necessary.
@@ -62,8 +62,8 @@ eve_caen1724_par_t = np.dtype([
     ("zs_threshold", "<(20,8)i4"),
     ("zero_offset", "<(20,8)i4"),
 
-    ("nof_active_channels", "<20i4"),   # 0...8, number of active channels on each caen board
-    ("nof_samples", "<u4"),             # Redundant with page size? Only 512 instead of 10 ?
+    ("nof_active_channels", "<20i4"),  # 0...8, number of active channels on each caen board
+    ("nof_samples", "<u4"),  # Redundant with page size? Only 512 instead of 10 ?
     ("event_count", "<i4"),
 ])
 
