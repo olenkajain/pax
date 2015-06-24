@@ -36,6 +36,9 @@ class PosRecChiSquareGamma(plugin.TransformPlugin):
         # List of integers of which PMTs to use, this algorithm uses the top pmt array to reconstruct
         self.pmts = self.config['channels_top']
 
+        # Set area threshold, minimum area for a peak to be reconstructed
+        self.area_threshold = self.config['area_threshold']
+
         # (x,y) Locations of these PMTs.  This is stored as a dictionary such
         # that self.pmt_locations[int] = {'x' : int, 'y' : int, 'z' : None}
         self.pmt_locations = self.config['pmt_locations']
@@ -150,15 +153,21 @@ class PosRecChiSquareGamma(plugin.TransformPlugin):
                                    " %s x: %f y: %f, appending chi_square_gamma: %f ndf: %d"
                                    % (position.algorithm, position.x, position.y, position.goodness_of_fit, self.ndf))
 
-                    # If a weighted sum is already calculated for this peak, use it as start position
-                    if position.algorithm == 'PosRecWeightedSum' and not self.mode == 'no_reconstruct':
-                        self.log.debug('Using weighted sum by PosRecWeightedSum as minimizer start position')
+                    # If a neural net position is already calculated for this peak, use it as start position
+                    if position.algorithm == 'NeuralNet' and not self.mode == 'no_reconstruct':
+                        self.log.debug('Using NeuralNet position as minimizer start position')
 
                         start_x = position.x
                         start_y = position.y
 
             if self.mode == 'no_reconstruct':
                 return event
+
+            # Only reconstruct peak if it has an area of more then area_threshold pe
+            # Setting a very low threshold is bad for speed
+            if peak.area < self.area_threshold:
+                self.log.debug("Peak area below threshold, skipping to the next peak")
+                continue
 
             # Start minimization
             self.log.debug("Starting minimizer for position reconstruction")

@@ -8,7 +8,7 @@ from pax.datastructure import Event, Peak
 class TestPosRecChiSquareGamma(unittest.TestCase):
 
     def setUp(self):
-        self.pax = core.Processor(config_names='posrecChi',
+        self.pax = core.Processor(config_names='XENON100',
                                   just_testing=True,
                                   config_dict={'pax': {'plugin_group_names':
                                                ['test'], 'test':
@@ -24,6 +24,7 @@ class TestPosRecChiSquareGamma(unittest.TestCase):
                              'right': 9,
                              'type':  'S2',
                              'detector':  'tpc',
+                             'area': 123,
                              'area_per_channel': channels}))
         return e
 
