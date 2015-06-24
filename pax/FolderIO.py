@@ -189,7 +189,7 @@ class WriteToFolder(plugin.OutputPlugin):
         # Write the metadata to JSON
         with open(os.path.join(self.output_dir, 'pax_info.json'), 'w') as outfile:
             outfile.write(json_util.dumps(self.processor.get_metadata(),
-                                          sort_keys=True))
+                          sort_keys=True))
 
         # Start the temporary file. Events will first be written here, until events_per_file is reached
         self.tempfile = os.path.join(self.output_dir, 'temp.' + self.file_extension)

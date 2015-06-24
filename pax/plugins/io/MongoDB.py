@@ -6,15 +6,16 @@ either be triggered or untriggered. In the case of untriggered, an event builder
 must be run on the data and will result in triggered data.  Input and output
 classes are provided for MongoDB access.  More information is in the docstrings.
 """
-import time
-
 import numpy as np
 import numba
+
+import time
 import pymongo
 import snappy
 
 from pax.datastructure import Event, Pulse
 from pax import plugin, units
+
 
 START_KEY = 'time'
 STOP_KEY = 'endtime'
@@ -75,7 +76,7 @@ class IOMongoDB():
         self.number_of_events = 0
 
         self.connections = {}  # MongoClient objects
-        self.mongo = {}  #
+        self.mongo = {}        #
 
         self.pmt_mappings = self.config['pmt_mappings']
 
@@ -199,6 +200,7 @@ class IOMongoDB():
 
 class MongoDBReadUntriggered(plugin.InputPlugin,
                              IOMongoDB):
+
     """Read from MongoDB and build events
 
     This will perform a sliding window trigger on the times.  No PMT pulse
@@ -326,7 +328,7 @@ class MongoDBReadUntriggered(plugin.InputPlugin,
                           sampletime_fmt(x[0]),
                           sampletime_fmt(x[-1]))
 
-            self.last_time = x[-1]  # TODO race condition? subtract second?
+            self.last_time = x[-1]   # TODO race condition? subtract second?
             self.first_time = x[0]
             rate = 2000
             n = int(((x[-1] - x[0]) // units.s) * rate)
@@ -378,6 +380,7 @@ class MongoDBReadUntriggered(plugin.InputPlugin,
 
 
 class MongoDBReadUntriggeredFiller(plugin.TransformPlugin, IOMongoDB):
+
     """Read untriggered data from MongoDB into event classes
 
     After MongoDBReadUntriggered has identified events, this class actually
@@ -444,6 +447,7 @@ class MongoDBReadUntriggeredFiller(plugin.TransformPlugin, IOMongoDB):
 
 class MongoDBWriteTriggered(plugin.OutputPlugin,
                             IOMongoDB):
+
     def startup(self):
         IOMongoDB.startup(self)  # Setup with baseclass
         self.setup_access('output')

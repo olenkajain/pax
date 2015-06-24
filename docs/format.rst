@@ -27,16 +27,16 @@ ReconstructedPosition
 ---------------------
 
 .. autoclass:: pax.datastructure.ReconstructedPosition
-:members:
-        :undoc-members:
+    :members:
+    :undoc-members:
 
-    ---
-    Hit
-    ---
+---
+Hit
+---
 
 .. autoclass:: pax.datastructure.Hit
-:members:
-        :undoc-members:
+    :members:
+    :undoc-members:
 
 ---------
 Waveforms

@@ -8,8 +8,8 @@ transform would modify the event object.
 See format for more information on the event object.
 """
 import logging
-import time
 
+import time
 from pax.datastructure import Event
 
 
@@ -43,8 +43,8 @@ class BasePlugin(object):
                 raise RuntimeError('Shutdown of %s returned a %s instead of '
                                    'None.' % (self.name,
                                               type(y)))
-                # else:
-                #    self.log.debug("Deleting %s, shutdown has already occurred" % self.name)
+        # else:
+        #    self.log.debug("Deleting %s, shutdown has already occurred" % self.name)
 
     @staticmethod
     def _timeit(method):
