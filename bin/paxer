@@ -18,6 +18,7 @@ from pax import core, utils
 
 
 class BaseProcess(multiprocessing.Process):
+
     """Base class for starting pax threads
     """
 
@@ -47,6 +48,7 @@ class BaseProcess(multiprocessing.Process):
 
 
 class ProcessorEvents(BaseProcess):
+
     """Thread for processing single events
 
     This thread will be fed via the task queue and report its results via the

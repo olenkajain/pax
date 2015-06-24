@@ -30,9 +30,9 @@ ReconstructedPosition
 :members:
         :undoc-members:
 
-        ---
-        Hit
-        ---
+    ---
+    Hit
+    ---
 
 .. autoclass:: pax.datastructure.Hit
 :members:

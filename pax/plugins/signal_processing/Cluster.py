@@ -287,6 +287,7 @@ class GapSize(ClusterPlugin):
     Any gap longer than max_gap_size starts a new cluster.
     Difference with HitDifference: this takes interval nature of hits into account
     """
+
     def startup(self):
         super().startup()
         # Convert gap threshold to samples (is in time (ns) in config)

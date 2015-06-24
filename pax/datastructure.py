@@ -15,7 +15,6 @@ import numpy as np
 
 from pax import units
 
-
 # DO NOT use Model instead of StrictModel:
 # It improves performance, but kills serialization (numpy int types will apear in class etc)
 # TODO: For Hit class, we may want Model for performance?

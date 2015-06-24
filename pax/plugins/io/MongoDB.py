@@ -63,6 +63,7 @@ def sampletime_fmt(num):
 
 
 class IOMongoDB():
+
     def startup(self):
         self.start_key = self.config['start_key']
         self.stop_key = self.config['stop_key']

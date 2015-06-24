@@ -10,7 +10,7 @@ Contents:
    usage
    format
    plugin
-               eventbuilder
+         eventbuilder
    contributing
    faq
    authors
