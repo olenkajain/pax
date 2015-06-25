@@ -265,31 +265,53 @@ class PlottingHitPattern(PlotBase):
                     self._plot(peak, ax, getattr(self, 'channels_%s' % array))
 
 
-class PlotChannelWaveforms3D(PlotBase):
+class PlotStackedChannelWaveforms(PlotBase):
 
-    """Plot the waveform of several channels in 3D, with different y positions for all channels.
+    """Plot the waveform of several channels stacked or in 3D
     """
+    
+    def startup(self):
+        # Configurable limits
+        self.channels_start = self.config.get('channel_start', 0)
+        self.channels_end = self.config.get('channel_end', 24)
+        self.t_start = self.config.get('self.t_start', 0 * units.us)
+
+        self.log_scale = self.config.get('log_scale', False)
+
+        # Plot mode
+        self.plot_mode = self.config.get('plot_mode', 'stacked')
+        if self.plot_mode not in ('stacked', '3d'):
+            raise ValueError('Plot mode must be stacked or 3d, not %s' % self.plot_mode)
+
+        if self.plot_mode == 'stacked':
+            self.channel_stacking_amplitude = self.config.get('channel_stacking_amplitude', 0.5)
+            if self.log_scale:
+                self.channel_stacking_amplitude = np.log10(1 + self.channel_stacking_amplitude)
+
+        super().startup()
+
 
     def plot_event(self, event):
+        self.t_end = self.config.get('self.t_end', event.duration())
         dt = self.config['sample_duration']
 
-        # Configurable limits
-        channels_start = self.config.get('channel_start', min(self.config['channels_in_detector']['tpc']))
-        channels_end = self.config.get('channel_start', max(self.config['channels_in_detector']['tpc']))
-        t_start = self.config.get('t_start', 0 * units.us)
-        t_end = self.config.get('t_end', event.duration())
-
         fig = plt.figure(figsize=(self.size_multiplier * 4, self.size_multiplier * 2))
-        ax = fig.gca(projection='3d')
 
-        global_max_amplitude = 0
+        if self.plot_mode == '3d':
+            ax = fig.gca(projection='3d')
+            # We need to keep track of the min & maxz amplitude, apparently there's no z-autoscaling?
+            global_max_amplitude = 0
+            global_min_amplitude = 0
+        elif self.plot_mode == 'stacked':
+            ax = fig.gca()
+
         for pulse in event.pulses:
             # Take only channels in the range we want to plot
-            if not channels_start <= pulse.channel <= channels_end:
+            if not self.channels_start <= pulse.channel <= self.channels_end:
                 continue
 
             # Take only pulses that fall (at least partially) in the time window we want to plot
-            if pulse.right * dt < t_start or pulse.left * dt > t_end:
+            if pulse.right * dt < self.t_start or pulse.left * dt > self.t_end:
                 continue
 
             w = self.config['digitizer_reference_baseline'] + pulse.baseline - pulse.raw_data.astype(np.float64)
@@ -299,38 +321,58 @@ class PlotChannelWaveforms3D(PlotBase):
                 # TODO: So... will it crash? or just fall outside range?
                 w = np.log10(1 + w)
 
-            # We need to keep track of this, apparently gca can't scale itself?
-            global_max_amplitude = max(np.max(w), global_max_amplitude)
+            # Cut off pulses partially in window we want to plot
+            if pulse.right * dt > self.t_end:
+                w = w[:pulse.length - (pulse.right - self.t_end / dt)]
+            if pulse.left * dt < self.t_start:
+                w = w[self.t_start / dt - pulse.left:]
 
-            ax.plot(
-                np.linspace(pulse.left, pulse.right, pulse.length) * dt / units.us,
-                pulse.channel * np.ones(pulse.length),
-                zs=w,
-                zdir='z',
-                label=str(pulse.channel)
-            )
+            times = np.linspace(max(self.t_start / dt, pulse.left),
+                                min(self.t_end / dt, pulse.right),
+                                len(w)) * dt / units.us
+
+            if self.plot_mode == '3d':
+                global_max_amplitude = max(np.max(w), global_max_amplitude)
+                global_min_amplitude = min(np.min(w), global_max_amplitude)
+                ax.plot(
+                    times,
+                    pulse.channel * np.ones(len(w)),
+                    zs=w,
+                    zdir='z',
+                    label=str(pulse.channel),
+                    color=plt.cm.jet((pulse.channel % 10)/9)
+                )
+            elif self.plot_mode == 'stacked':
+                ax.plot(
+                    times,
+                    pulse.channel * np.ones(len(w)) + w / self.channel_stacking_amplitude,
+                    label=str(pulse.channel),
+                    color=plt.cm.jet((pulse.channel % 10)/9)
+                )
 
         # Plot the sum waveform
-        w = event.get_sum_waveform('tpc').samples[int(t_start / dt):int(t_end / dt) + 1]
-        ax.plot(
-            np.linspace(t_start, t_end, len(w)) / units.us,
-            (channels_end + 1) * np.ones(len(w)),
-            zs=w * global_max_amplitude / np.max(w),
-            zdir='z',
-            label='Tpc'
-        )
+        # TODO: implement for stacked plot
+        if self.config.get('also_plot_sum_waveform', False) and self.plot_mode == '3d':
+            w = event.get_sum_waveform('tpc').samples[int(self.t_start / dt):int(self.t_end / dt) + 1]
+            ax.plot(
+                np.linspace(self.t_start, self.t_end, len(w)) / units.us,
+                (self.channels_end + 1) * np.ones(len(w)),
+                zs=w * global_max_amplitude / np.max(w),
+                zdir='z',
+                label='Tpc'
+            )
 
         ax.set_xlabel('Time [$\mu$s]')
-        ax.set_xlim3d(t_start / units.us, t_end / units.us)
-
         ax.set_ylabel('Channel number')
-        ax.set_ylim3d(channels_start, channels_end)
 
-        zlabel = 'Pulse height [pe_nominal / %d ns]' % (self.config['sample_duration'] / units.ns)
-        if self.config['log_scale']:
-            zlabel = 'Log10 1 + ' + zlabel
-        ax.set_zlabel(zlabel)
-        ax.set_zlim3d(0, global_max_amplitude)
+        if self.plot_mode == '3d':
+            ax.set_xlim3d(self.t_start / units.us, self.t_end / units.us)
+            ax.set_ylim3d(self.channels_start, self.channels_end)
+            zlabel = 'Pulse height [pe_nominal / sample]'
+            if self.log_scale:
+                zlabel = 'Log10 1 + ' + zlabel
+            ax.set_zlabel(zlabel)
+            ax.set_zlim3d(global_min_amplitude, global_max_amplitude)
 
         plt.tight_layout()
 
