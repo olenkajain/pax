@@ -1,10 +1,16 @@
-"""Live Data Monitoring
+"""
+Live Data Monitoring
 
-The DAQ uses a Django web interface for control. This introduces the possibility to easily view data online as it
-comes out of the detector. This plugin is meant to be run in a standalone pax instance constantly polling the
-Event Builder output database and processing as many events as it can get to. Each reconstructed event is saved
-in its entirety to a capped collection on the data monitor's MongoDB database. Additionally, long-term diagnostic
-spectra are filled on a per-run basis.
+D.Coderre
+14.07.2015
+
+The DAQ uses a Django web interface for control. This introduces the 
+possibility to easily view data online as it comes out of the detector. 
+This plugin is meant to be run in a standalone pax instance constantly 
+polling the Event Builder output database and processing as many events 
+as it can get to. Each reconstructed event is saved in its entirety 
+to a capped collection on the data monitor's MongoDB database. 
+Additionally, long-term diagnostic spectra are filled on a per-run basis.
 
 """
 
@@ -23,7 +29,9 @@ from pax import units
 
 def get_bin(bin_value, num_bins, min_bin, max_bin):
 
-    """ Gets which bin an entry falls into. Overflow bin is MAX, underflow is 0.
+    """ 
+    Gets which bin an entry falls into. Overflow bin is MAX, underflow is 0.
+    Used in histogramming functions.
     """
 
     bin_size = (max_bin - min_bin) / num_bins
@@ -40,7 +48,8 @@ def get_bin(bin_value, num_bins, min_bin, max_bin):
 class OnlineMonitorOutput(plugin.OutputPlugin):
 
     """
-    Connectivity properties should be defined in the .ini file. Needs to output to a MongoDB with two collections.
+    Connectivity properties should be defined in the .ini file. 
+    Needs to output to a MongoDB with two collections.
     """
 
     def startup(self):
@@ -73,55 +82,20 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
         """ Dump entire event to BSON and save in mongodb
         """
 
-        # Some events will be too large. Waveforms are mostly zeros. We can compress them by removing zeros.
+        # Some events will be too large. Waveforms are mostly zeros. 
+        # We can compress them by removing zeros. This keeps the transfer
+        # size small. The user's browser will decompress the waveform.
         smaller = self.compress_event(loads(event.to_json()))
         try:
             self.event_collection.insert(smaller)
         except Exception as e:
+            # Really large waveforms will have to be skipped. This can happen
+            # if there are many many channel waveforms.
             self.log.warn("Error inserting a waveform doc. Likely that it is too large (16MB limit)")
             self.log.exception(e)
 
         return
 
-    def write_plot_collection(self, event):
-
-        # This is easiest if we instantiate a plot object (we want to make the display and pickle it)
-
-        # We need a 'fake' config file because we want to use pax plotting but don't necessarily have all options
-        fake_config = { 'output_dir': None,
-                        'size_multiplier': 4,
-                        'plot_largest_peaks': True,
-                        'log_scale_entire_event': False,
-                        'log_scale_s2': False,
-                        'log_scale_s1': False,'waveforms_to_plot': (
-                            {'internal_name': 'tpc',      'plot_label': 'TPC (hits only)',
-                                'drawstyle': 'steps', 'color':'black'},
-                            {'internal_name': 'tpc_raw',  'plot_label': 'TPC (raw)',
-                                'drawstyle': 'steps', 'color':'black', 'alpha': 0.3},
-                            {'internal_name': 'veto',     'plot_label': 'Veto (hits only)',
-                                'drawstyle': 'steps', 'color':'red'},
-                            {'internal_name': 'veto_raw', 'plot_label': 'Veto (raw)',
-                                'drawstyle': 'steps', 'color':'red', 'alpha': 0.2})}
-        config_total = self.config.copy()
-        config_total.update(fake_config)
-
-        plotter = PlotEventSummary(processor=self.processor, config_values=config_total)
-        plotter.plot_event(event=event)
-        plot = plt.gcf()
-
-        # save as pickle in doc. Fails is pickle is too big
-        binary = pickle.dumps(plot)
-        trigger_time_ns = (event.start_time + self.config.get('trigger_time_in_event', 0)) / units.ns
-        print(trigger_time_ns)
-        timestring = time.strftime("%Y/%m/%d, %H:%M:%S", time.gmtime(trigger_time_ns / 10 ** 9))
-
-        try:
-            self.plot_collection.insert({'data': binary, 'run_name': event.dataset_name,
-                                         'event_date': timestring,
-                                         'event_number': event.event_number })
-        except:
-            self.log.warn("BSON document for event display too big!")
-        return
 
     def update_aggregate_docs(self, event):
 
@@ -298,3 +272,62 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
         # Unfortunately we also have to remove the pulses or some events are huge
         del event['pulses']
         return event
+
+    '''
+    # probably deprecated as too slow
+    def write_plot_collection(self, event):
+        """
+        This function pickles an actual pax event display and writes it to the
+        monitor DB. This is opened in the frontend with a matplotlib to js
+        converter. This is pretty slow (on the pax side) so may be dropped
+        from the final setup.
+        """
+
+        # We need a 'fake' config file because we want to use pax
+        # plotting but don't necessarily have all options.
+        fake_config = { 'output_dir': None,
+                        'size_multiplier': 4,
+                        'plot_largest_peaks': True,
+                        'log_scale_entire_event': False,
+                        'log_scale_s2': False,
+                        'log_scale_s1': False,'waveforms_to_plot': (
+                            { 'internal_name': 'tpc',
+                              'plot_label': 'TPC (hits only)',
+                              'drawstyle': 'steps', 'color':'black'},
+                            { 'internal_name': 'tpc_raw',
+                              'plot_label': 'TPC (raw)',
+                              'drawstyle': 'steps',
+                              'color':'black',
+                              'alpha': 0.3},
+                            { 'internal_name': 'veto',
+                              'plot_label': 'Veto (hits only)',
+                              'drawstyle': 'steps',
+                              'color':'red'},
+                            { 'internal_name': 'veto_raw',
+                              'plot_label': 'Veto (raw)',
+                              'drawstyle': 'steps',
+                              'color':'red',
+                              'alpha': 0.2})
+        }
+        config_total = self.config.copy()
+        config_total.update(fake_config)
+
+        plotter = PlotEventSummary(processor=self.processor,
+                                   config_values=config_total)
+        plotter.plot_event(event=event)
+        plot = plt.gcf()
+
+        # save as pickle in doc. Fails is pickle is too big
+        binary = pickle.dumps(plot)
+        trigger_time_ns = (event.start_time + self.config.get('trigger_time_in_event', 0)) / units.ns
+        print(trigger_time_ns)
+        timestring = time.strftime("%Y/%m/%d, %H:%M:%S", time.gmtime(trigger_time_ns / 10 ** 9))
+
+        try:
+            self.plot_collection.insert({'data': binary, 'run_name': event.dataset_name,
+                                         'event_date': timestring,
+                                         'event_number': event.event_number })
+        except:
+            self.log.warn("BSON document for event display too big!")
+        return
+    '''
