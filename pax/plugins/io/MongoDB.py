@@ -288,6 +288,9 @@ class MongoDBReadUntriggered(plugin.InputPlugin,
     def get_events(self):
         self.last_time = 0  # ns
 
+        # Used to timeout if DAQ crashes and no data will come
+        time_out_counter = time.time()
+
         while not self.data_taking_ended:
             # Grab new run document in case run ended.  This much happen before
             # processing data to avoid a race condition where the run ends
@@ -315,8 +318,13 @@ class MongoDBReadUntriggered(plugin.InputPlugin,
             if n == 0:
                 self.log.fatal("Nothing found, continue")
                 time.sleep(1)  # todo: configure
-                break  # todo: remove
+                if time.time() - time_out_counter > 60:  # seconds
+                    raise RuntimeError('Timed out waiting for new data (DAQ crash?)')
+
                 continue
+
+            # Reset timeout counter used for finding crashed DAQ
+            time_out_counter = time.time()
 
             x = [[self._from_mt(doc[START_KEY]),
                   self._from_mt(doc[STOP_KEY])] for doc in times]  # in digitizer units
@@ -440,6 +448,13 @@ class MongoDBReadUntriggeredFiller(plugin.TransformPlugin, IOMongoDB):
 
 class MongoDBWriteTriggered(plugin.OutputPlugin,
                             IOMongoDB):
+    """Write entire processed event to MongoDB
+
+    These events are already triggered.  We first convert event class to a dict,
+    then pymongo converts that to BSON.  We have to convert the numpy arrays to
+    bytes because otherwise we get type errors since pymongo doesn't know about
+    numpy.
+    """
 
     def startup(self):
         IOMongoDB.startup(self)  # Setup with baseclass
