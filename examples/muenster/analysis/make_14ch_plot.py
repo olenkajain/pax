@@ -33,4 +33,4 @@ def make_plot(hits_df, field, xaxislabel = "x-axis", yaxislabel = "y-axis", nof_
                                 **kwargs)
             ax[0][1].legend(framealpha=0.5)
             ax[xi-7][1].text(8, 1000, "Channel # %i"%xi)
-    # return fig
+    return fig
