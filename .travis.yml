@@ -22,7 +22,29 @@ services:
 env:
   - ROOT=5.34.25
   - ROOT=6.03.04
-  
+
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - build-essential
+    - git
+    - dpkg-dev
+    - make
+    - binutils
+    - libx11-dev
+    - libxpm-dev
+    - libxft-dev
+    - libxext-dev
+    - gcc-multilib
+#    - g++
+#    - gcc
+    - libsnappy1
+    - libsnappy-dev
+    - python-software-properties
+    - gcc-4.8
+    - g++-4.8
 
 os:
   #- osx
@@ -31,7 +53,7 @@ os:
 install:
   - deactivate
   - echo ${TRAVIS_OS_NAME}
-  - source travis/${TRAVIS_OS_NAME}_setup.sh
+  #- source travis/${TRAVIS_OS_NAME}_setup.sh
   - gcc --version
 
   # Conda
