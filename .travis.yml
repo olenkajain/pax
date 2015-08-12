@@ -40,8 +40,6 @@ addons:
     - libxft-dev
     - libxext-dev
     - gcc-multilib
-#    - g++
-#    - gcc
     - libsnappy1
     - libsnappy-dev
     - python-software-properties
@@ -49,18 +47,17 @@ addons:
     - g++-4.8
 
 os:
-  #- osx
+  - osx
   - linux
 
 install:
   - deactivate
-  - echo ${TRAVIS_OS_NAME}
-  #- source travis/${TRAVIS_OS_NAME}_setup.sh
   - gcc --version
 
-  # Conda
-  - if [ "${TRAVIS_OS_NAME}" == "linux" ]; then wget -nv http://repo.continuum.io/miniconda/Miniconda3-3.9.1-Linux-x86_64.sh -O miniconda.sh; fi
+  # Grab Conda
+  - if [ "${TRAVIS_OS_NAME}" == "osx" ]; then brew install wget; fi
   - if [ "${TRAVIS_OS_NAME}" == "osx" ]; then wget -nv http://repo.continuum.io/miniconda/Miniconda3-3.9.1-MacOSX-x86_64.sh -O miniconda.sh; fi
+  - if [ "${TRAVIS_OS_NAME}" == "linux" ]; then wget -nv http://repo.continuum.io/miniconda/Miniconda3-3.9.1-Linux-x86_64.sh -O miniconda.sh; fi
   
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
