@@ -63,11 +63,13 @@ class BSONIO():
 
 
 class ReadZippedBSON(BSONIO, ReadZipped):
+
     """Read a folder of zipfiles containing gzipped BSON files"""
     pass
 
 
 class WriteZippedBSON(BSONIO, WriteZipped):
+
     """Write raw data to a folder of zipfiles containing gzipped BSONs"""
     pass
 
@@ -105,6 +107,7 @@ class WriteBSON(WriteToFolder, BSONIO):
     def close(self):
         self.current_file.close()
 
+
 class LTSReadBSON(InputFromFolder, BSONIO):
 
     """Long term storage BSON reading
@@ -127,6 +130,7 @@ class LTSReadBSON(InputFromFolder, BSONIO):
 
 
 class LTSWriteBSON(WriteToFolder, BSONIO):
+
     """Long term storage BSON writing
 
     Write raw data to a folder of concatenated-BSON files.  LZMA and a delta
@@ -139,10 +143,10 @@ class LTSWriteBSON(WriteToFolder, BSONIO):
 
     def open(self, filename):
         my_filters = [
-                    {"id": lzma.FILTER_DELTA,
-                     "dist": self.config['dist']},
-                    {"id": lzma.FILTER_LZMA2,
-                     "preset": self.config['preset'] | lzma.PRESET_EXTREME},
+            {"id": lzma.FILTER_DELTA,
+             "dist": self.config['dist']},
+            {"id": lzma.FILTER_LZMA2,
+             "preset": self.config['preset'] | lzma.PRESET_EXTREME},
         ]
         self.current_file = lzma.open(filename,
                                       "w",
