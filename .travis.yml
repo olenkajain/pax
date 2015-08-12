@@ -4,8 +4,8 @@ language: python
 
 sudo: false
 
-python:
-  - "3.4"
+#python:
+#  - "3.4"
 
 matrix:
   allow_failures:
