@@ -52,7 +52,7 @@ addons:
 
 os:
   - osx
-  - linux
+#  - linux
 
 install:
   - deactivate
