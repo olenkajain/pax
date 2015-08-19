@@ -112,6 +112,12 @@ class FindHits(plugin.TransformPlugin):
             if pmt_gain == 0:
                 continue
 
+            # Check if the DAQ pulse was ADC-saturated (clipped)
+            # This means the raw waveform dropped to 0,
+            # i.e. we went digitizer_reference_baseline above the reference baseline
+            # i.e. we went digitizer_reference_baseline - pulse.baseline above baseline
+            is_saturated = pulse.maximum >= self.config['digitizer_reference_baseline'] - pulse.baseline
+
             # Compute thresholds based on noise level
             high_threshold = max(self.config['height_over_noise_high_threshold'] * pulse.noise_sigma,
                                  self.config['absolute_adc_counts_high_threshold'],
@@ -181,10 +187,10 @@ class FindHits(plugin.TransformPlugin):
                                            height, noise_sigma_pe, high_threshold * adc_to_pe,
                                            area))
 
-                # If the pulse reached saturation, we should also count the saturation in each hit
+                # If the pulse reached the ADC saturation threshold, we should count the saturated samples in each hit
                 # This is rare enough that it doesn't need to be in numba
                 n_saturated = 0
-                if pulse.maximum - pulse.baseline >= self.config['digitizer_reference_baseline']:
+                if is_saturated:
                     n_saturated = np.count_nonzero(w[hit[0]:hit[1] + 1] >=
                                                    self.config['digitizer_reference_baseline'] - pulse.baseline)
 
@@ -232,7 +238,7 @@ class FindHits(plugin.TransformPlugin):
                 if len(hits_found) == 0:
                     continue
             elif self.make_diagnostic_plots == 'saturated':
-                if not pulse.maximum - pulse.baseline >= self.config['digitizer_reference_baseline']:
+                if not is_saturated:
                     continue
             else:
                 if self.make_diagnostic_plots != 'always':
