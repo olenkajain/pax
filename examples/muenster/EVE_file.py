@@ -166,7 +166,7 @@ class EveInput(InputFromFolder):
                 # np.fromfile(evefile,dtype=np.uint32, count=1)[0]
                 j += 1
                 positions.append(evefile.tell())
-            print("There are %d events in this file" % (j - 1), len(positions) - 1)
+            print("There are %d events in this file" % (j - 1))
             # print(positions)
             positions.pop(0)  # throw away first event as it is the cae1724_par event
 
