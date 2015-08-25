@@ -2,10 +2,12 @@ __author__ = 'axel'
 import matplotlib.pyplot as plt
 plt.rc('font', size=16)
 
-def make_plot(hits_df, field, xaxislabel = "x-axis", yaxislabel = "y-axis", nof_bins=500, xlim=(-1,5000), ylim= None, legendlabel=None, **kwargs):
-
-    fig, ax = plt.subplots(nrows=7, ncols=2, sharex=True, sharey=True, squeeze=False, figsize=(20,14))
-    plt.subplots_adjust(hspace=0.1, wspace=0.05)
+def make_plot(hits_df, field, xaxislabel = "x-axis", yaxislabel = "y-axis", nof_bins=500, xlim=(-1,5000), ylim= None, legendlabel=None, axes = None, **kwargs):
+    if axes is not None:
+        ax = axes
+    else:
+        fig, ax = plt.subplots(nrows=7, ncols=2, sharex=True, sharey=True, squeeze=False, figsize=(20,14))
+    plt.tight_layout()
 
     ax[6][0].set_xlabel(xaxislabel)
     ax[6][1].set_xlabel(xaxislabel)
@@ -33,4 +35,4 @@ def make_plot(hits_df, field, xaxislabel = "x-axis", yaxislabel = "y-axis", nof_
                                 **kwargs)
             ax[0][1].legend(framealpha=0.5)
             ax[xi-7][1].text(8, 1000, "Channel # %i"%xi)
-    return fig
+    #return fig
