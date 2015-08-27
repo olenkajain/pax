@@ -211,22 +211,26 @@ class PlotBase(plugin.OutputPlugin):
         pmts_hit = [ch for ch in self.pmts[array] if peak.does_channel_contribute[ch]]
         q = ax.scatter(*self.pmt_locations[pmts_hit].T,
                        c=peak.area_per_channel[pmts_hit],
+                       marker="s",
+                       cmap="jet",
                        norm=matplotlib.colors.LogNorm(),
                        vmin=self.hitpattern_limits[0],
                        vmax=self.hitpattern_limits[1],
                        alpha=0.4,
-                       s=250)
+                       s=3500)
 
         # Plot the PMT numbers
         for pmt in pmts_hit:
             ax.text(self.pmt_locations[pmt, 0], self.pmt_locations[pmt, 1], pmt,
-                    fontsize=6, va='center', ha='center', color='black')
+                    fontsize=16, va='center', ha='center', color='black')
 
         # Plot the detector radius
         r = self.config['tpc_radius']
         ax.add_artist(plt.Circle((0, 0), r, edgecolor='black', fill=None))
         ax.set_xlim(-1.2*r, 1.2*r)
         ax.set_ylim(-1.2*r, 1.2*r)
+        ax.set_xlabel("[cm]")
+        ax.set_ylabel("[cm]")
 
         return q
 
