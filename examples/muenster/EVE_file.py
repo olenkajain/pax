@@ -77,8 +77,6 @@ eve_signal_header = np.dtype([
     ("nsamp", "<u4"),
     ("page_size", "<u4"),
     ("event_size", "<u4"),
-    # TODO: separate this header into smaller fields. numpy doesnt support 24bit numbers aka "<u3" or smaller structures
-    # than 1 byte. Need to fix this
     ("board_res_0_pattern_channelmask", "<u4"),
     ("reserved_eventcounter", "<u4"),
     ("trigger_time_tag", "<i4"),
@@ -220,6 +218,8 @@ class EveInput(InputFromFolder):
                     continue  # skip the current board
                 event_signal_header_raw = np.fromfile(self.current_evefile, dtype=eve_signal_header, count=1)[0]
                 event_signal_header = header_unpacker(event_signal_header_raw)
+                if board_i == 0:
+                    event.start_time += event_signal_header["trigger_time_tag"]*10*units.ns
                 for ch_i, channel_is_active in enumerate(channels_active):
                     if channel_is_active == 0:
                         continue  # skip unused channels
@@ -244,7 +244,8 @@ class EveInput(InputFromFolder):
                                                       count=1)[0]
                 event_signal_header = header_unpacker(event_signal_header_raw)
                 channel_mask = event_signal_header["channel_mask"]
-
+                if board_i == 0:
+                    event.start_time += event_signal_header["trigger_time_tag"]*10*units.ns
                 channels_included = [i for i in range(8)
                                      if (2 ** i & channel_mask) > 0]
 
