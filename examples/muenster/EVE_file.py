@@ -244,8 +244,6 @@ class EveInput(InputFromFolder):
                                                       count=1)[0]
                 event_signal_header = header_unpacker(event_signal_header_raw)
                 channel_mask = event_signal_header["channel_mask"]
-                if board_i == 0:
-                    event.start_time += event_signal_header["trigger_time_tag"]*10*units.ns
                 channels_included = [i for i in range(8)
                                      if (2 ** i & channel_mask) > 0]
 
