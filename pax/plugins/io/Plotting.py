@@ -22,6 +22,7 @@ from pax import plugin, units, utils, datastructure
 
 class PlotBase(plugin.OutputPlugin):
     block_view = False
+    hates_tight_layout = False
 
     def startup(self):
         if self.config['output_name'] != 'SCREEN':
@@ -74,6 +75,8 @@ class PlotBase(plugin.OutputPlugin):
     def finalize_plot(self, event_number=0):
         """Finalize plotting, send to screen/file, then closes plot properly (avoids runtimewarning / memory leak).
         """
+        if not self.hates_tight_layout:
+            plt.tight_layout()
         if self.output_dir:
             if self.config['plot_format'] == 'pdf':
                 plt.savefig(self.output_dir + '/%06d.pdf' % event_number, format='pdf')
@@ -373,8 +376,6 @@ class PlotChannelWaveforms3D(PlotBase):
         ax.set_zlabel(zlabel)
         ax.set_zlim3d(0, global_max_amplitude)
 
-        plt.tight_layout()
-
 
 class PlotChannelWaveforms2D(PlotBase):
 
@@ -531,15 +532,21 @@ class PlotEventSummary(PlotBase):
         q = PlotChannelWaveforms2D(self.config, self.processor)
         q.plot_event(event)
 
+        # Make some room for the title: need to call tight_layout first...
         plt.tight_layout()
-
-        # Make some room for the title
         plt.subplots_adjust(top=1 - 0.12 * 4 / self.size_multiplier)
 
 
 class PeakViewer(PlotBase):
     block_view = True
+    hates_tight_layout = True
     max_characters = 70
+
+    def substartup(self):
+        # Dictionary mapping event number to left boundary index of desired starting peak
+        self.starting_peak_per_event = self.config.get('starting_peak_per_event', {})
+        # Convert keys = event numbers to integers -- necessary since JSON only allows string dictionary keys...
+        self.starting_peak_per_event = {int(k): v for k, v in self.starting_peak_per_event.items()}
 
     def plot_event(self, event):
         self.event = event
@@ -604,14 +611,30 @@ class PeakViewer(PlotBase):
         self.peak_text = self.fig.text(x, start_y + 3 * row_y + y_sep_middle, '', verticalalignment='top')
 
         ##
-        # Get the TPC peaks and select the largest one
+        # Get the TPC peaks and select one
         ##
+        # Did the user specify a peak number? If so, get it
+        self.peak_i = self.starting_peak_per_event.get(event.event_number, None)
         self.peaks = event.get_peaks_by_type(detector='tpc', sort_key='left', reverse=False)
         self.peaks = [p for p in self.peaks if p.type != 'lone_hit']
-        if len(self.peaks) < 1:
-            return
-        self.peak_i = np.argmax([p.area for p in self.peaks])
-        self.log.debug("Largest peak is %d from 0-%d" % (self.peak_i, len(self.peaks)-1))
+        if len(self.peaks) == 0:
+            self.log.debug("No peaks in this event, will be a boring peakviewer plot...")
+            return event
+
+        if event.event_number in self.starting_peak_per_event:
+            # The user specified the left boundary of the desired starting peak
+            desired_left = self.starting_peak_per_event[event.event_number]
+            self.peak_i = np.argmin([np.abs(p.left - desired_left) for p in self.peaks])
+            if self.peaks[self.peak_i].left != desired_left:
+                self.log.warning('There is no (tpc, non-lone-hit) peak starting at index %d! '
+                                 'Taking closest peak (%d-%d) instead.' % (desired_left,
+                                                                           self.peaks[self.peak_i].left,
+                                                                           self.peaks[self.peak_i].right))
+            self.log.debug("Selected user-defined peak %d" % self.peak_i)
+        else:
+            # Usual case: just pick the largest peak (regarless of its type)
+            self.peak_i = np.argmax([p.area for p in self.peaks])
+            self.log.debug("Largest peak is %d (peak list runs from 0-%d)" % (self.peak_i, len(self.peaks)-1))
 
         ##
         # Peak hitpatterns
@@ -686,6 +709,7 @@ class PeakViewer(PlotBase):
                                     (peak.right + peak_padding) * self.chwvs_2s_time_scale)
 
         # Update peak text
+        pos = peak.get_reconstructed_position_from_algorithm('PosRecChiSquareGamma')
         peak_text = 'Selected peak: %s at %d-%d, mean hit time %0.2fus\n' % (
             peak.type,
             peak.left,
@@ -695,9 +719,17 @@ class PeakViewer(PlotBase):
             peak.area, len(peak.hits), len(peak.contributing_channels))
         peak_text += 'Fraction in top: %0.2f\n' % peak.area_fraction_top
         peak_text += 'Peak widths: hit time std = %dns,\n' \
-                     ' 50%% area hits range = %dns, 90%% area hits range = %dns\n' % (peak.hit_time_std,
-                                                                                      peak.range_50p_area,
-                                                                                      peak.range_90p_area)
+                     ' 50%% area range = %dns, 90%% area range = %dns\n' % (peak.hit_time_std,
+                                                                            peak.range_area_decile[5],
+                                                                            peak.range_area_decile[9])
+        peak_text += 'Chi2Gamma: %0.1f, /area_top: %0.1f, /channels_top: %0.1f\n' % (
+            pos.goodness_of_fit,
+            pos.goodness_of_fit / (peak.area_fraction_top * peak.area
+                                   if peak.area_fraction_top != 0 else float('nan')),
+            pos.goodness_of_fit / (peak.n_contributing_channels_top
+                                   if peak.n_contributing_channels_top != 0 else float('nan')))
+        peak_text += 'Top spread: %0.1fcm, Bottom spread: %0.1fcm' % (peak.top_hitpattern_spread,
+                                                                      peak.bottom_hitpattern_spread)
         self.peak_text.set_text(self.wrap_multiline(peak_text, self.max_characters))
 
         plt.draw()

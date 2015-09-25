@@ -10,7 +10,10 @@ import argparse
 import os
 import sys
 import copy
-import queue
+try:
+    import queue
+except ImportError:
+    import Queue as queue   #noqa
 import multiprocessing
 
 # Hack to ensure correct matplotlib backend is chosen
@@ -290,7 +293,7 @@ def main():
                            config_paths=args.config_path,
                            config_dict=copy.deepcopy(override_dict))
 
-        override_dict['pax']['plugin_group_names'] = ['dsp', 'transform']
+        override_dict['pax']['plugin_group_names'] = ['dsp', 'compute_properties', 'pre_analysis']
 
         # Keep track of processing state that threads can see
         input_done = multiprocessing.Event()

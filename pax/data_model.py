@@ -4,7 +4,7 @@ Extends python object to do a few tricks
 """
 import json
 import bson
-
+import six
 import numpy as np
 
 from pax.utils import Memoize
@@ -25,13 +25,19 @@ class Model(object):
       - dump as dictionary and JSON
     """
 
-    def __init__(self, kwargs_dict=None, **kwargs):
+    def __init__(self, kwargs_dict=None, quick_init=False, **kwargs):
+
+        # If quick=True, use shortcut. Use for simple classes only; will bypass type checking!
+        if quick_init:
+            self.__dict__.update(kwargs_dict)
+            self.__dict__.update(kwargs)
+            return
 
         # Initialize the collection fields to empty lists
-        # super() is needed to bypass type checking in StrictModel
+        # object.__setattr__ is needed to bypass type checking in StrictModel
         list_field_info = self.get_list_field_info()
         for field_name in list_field_info:
-            super().__setattr__(field_name, [])
+            object.__setattr__(self, field_name, [])
 
         # Initialize all attributes from kwargs and kwargs_dict
         kwargs.update(kwargs_dict or {})
@@ -60,18 +66,20 @@ class Model(object):
                 default_value = getattr(self, k)
                 if type(default_value) == np.ndarray:
                     if isinstance(v, np.ndarray):
-                        setattr(self, k, v)
+                        pass
                     elif isinstance(v, bytes):
                         # Numpy arrays can be also initialized from a 'string' of bytes...
-                        setattr(self, k, np.fromstring(v, dtype=default_value.dtype))
+                        v = np.fromstring(v, dtype=default_value.dtype)
                     elif hasattr(v, '__iter__'):
                         # ... or an iterable
-                        setattr(self, k, np.array(v, dtype=default_value.dtype))
+                        v = np.array(v, dtype=default_value.dtype)
                     else:
                         raise ValueError("Can't initialize field %s: "
                                          "don't know how to make a numpy array from a %s" % (k, type(v)))
-                else:
-                    setattr(self, k, v)
+                elif isinstance(default_value, Model):
+                    v = default_value.__class__(**v)
+
+                setattr(self, k, v)
 
     @classmethod        # Use only in initialization (or if attributes are fixed, as for StrictModel)
     @Memoize            # Caching decorator, improves performance if a model is initialized often
@@ -119,14 +127,17 @@ class Model(object):
         for k, v in self.get_fields_data():
             if k in fields_to_ignore:
                 continue
-            if isinstance(v, list):
+            if isinstance(v, Model):
+                result[k] = v.to_dict(convert_numpy_arrays_to=convert_numpy_arrays_to,
+                                      fields_to_ignore=fields_to_ignore)
+            elif isinstance(v, list):
                 result[k] = [el.to_dict(convert_numpy_arrays_to=convert_numpy_arrays_to,
                                         fields_to_ignore=fields_to_ignore) for el in v]
             elif isinstance(v, np.ndarray) and convert_numpy_arrays_to is not None:
                 if convert_numpy_arrays_to == 'list':
                     result[k] = v.tolist()
                 elif convert_numpy_arrays_to == 'bytes':
-                    result[k] = v.tostring()
+                    result[k] = bson.Binary(v.tostring())
                 else:
                     raise ValueError('convert_numpy_arrays_to must be "list" or "bytes"')
             else:
@@ -147,13 +158,21 @@ class Model(object):
 
     @classmethod
     def from_bson(cls, x):
-        return cls(**bson.BSON.decode(x))
+        if six.PY2:
+            # Hack for python 2: may work in py3 too, but it's definitely not the standard way!
+            reader = bson.decode_file_iter(six.BytesIO(x))
+            event_dict = next(reader)
+        else:
+            event_dict = bson.BSON.decode(x)
+        return cls(**event_dict)
 
 
 casting_allowed_for = {
-    int:    ['int16', 'int32', 'int64', 'Int64', 'Int32'],
-    float:  ['int', 'float32', 'float64', 'int16', 'int32', 'int64', 'Int64', 'Int32'],
-    bool:   ['int16', 'int32', 'int64', 'Int64', 'Int32'],
+    'int':    ['int16', 'int32', 'int64', 'Int64', 'Int32', 'long'],
+    'float':  ['int', 'int16', 'int32', 'int64', 'Int64', 'Int32', 'float32', 'float64', 'long'],
+    'bool':   ['int', 'int16', 'int32', 'int64', 'Int64', 'Int32', 'long'],
+    'long':   ['int', 'int16', 'int32', 'int64', 'Int64', 'Int32'],
+    'str':    ['unicode']
 }
 
 
@@ -177,21 +196,22 @@ class StrictModel(Model):
         old_val = getattr(self, key)
         old_type = type(old_val)
         new_type = type(value)
+        old_class_name = old_val.__class__.__name__
+        new_class_name = value.__class__.__name__
 
         # Check for attempted type change
         if old_type != new_type:
 
             # Are we allowed to cast the type?
-            if old_type in casting_allowed_for \
-                    and value.__class__.__name__ in casting_allowed_for[old_type]:
+            if old_class_name in casting_allowed_for and new_class_name in casting_allowed_for[old_class_name]:
                 value = old_type(value)
 
             else:
                 raise TypeError('Attribute %s of class %s should be a %s, not a %s. '
                                 % (key,
                                    self.__class__.__name__,
-                                   old_val.__class__.__name__,
-                                   value.__class__.__name__))
+                                   old_class_name,
+                                   new_class_name))
 
         # Check for attempted dtype change
         if isinstance(old_val, np.ndarray):
@@ -199,4 +219,4 @@ class StrictModel(Model):
                 raise TypeError('Attribute %s of class %s should have numpy dtype %s, not %s' % (
                     key, self.__class__.__name__, old_val.dtype, value.dtype))
 
-        super().__setattr__(key, value)
+        Model.__setattr__(self, key, value)

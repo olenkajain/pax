@@ -8,7 +8,6 @@
 *.h5
 *.hdf
 *.hdf5
-*.npz
 fax_truth.csv
 
 
@@ -65,3 +64,7 @@ tpc_kr_150410.eve
 debug_event_plots
 debug_output
 analysis/analysis_results
+
+# Numba caches
+*.nbc
+*.nbi

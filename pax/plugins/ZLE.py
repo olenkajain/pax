@@ -1,7 +1,10 @@
 import numpy as np
 
-from pax import plugin, datastructure
-from pax.plugins.signal_processing.HitFinder import find_intervals_above_threshold
+from pax import plugin, datastructure, utils
+import os
+import sys
+sys.path.append(os.path.join(utils.PAX_DIR, 'plugins', 'signal_processing'))
+from HitFinder import find_intervals_above_threshold
 
 import matplotlib.pyplot as plt
 
@@ -43,7 +46,8 @@ class SoftwareZLE(plugin.TransformPlugin):
 
             # Find intervals above ZLE threshold
             high_threshold = low_threshold = self.config['zle_threshold']
-            n_itvs_found = find_intervals_above_threshold(w, high_threshold, low_threshold, zle_intervals_buffer)
+            n_itvs_found = find_intervals_above_threshold(w.astype(np.float64),
+                                                          high_threshold, low_threshold, zle_intervals_buffer)
 
             if n_itvs_found == self.config['max_intervals']:
                 # more than 5000 intervals - insane!!!

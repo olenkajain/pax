@@ -11,11 +11,15 @@ class TestPosRecChiSquareGamma(unittest.TestCase):
         self.pax = core.Processor(config_names='XENON100',
                                   just_testing=True,
                                   config_dict={'pax': {'plugin_group_names': ['test'],
-                                                       'test': 'PosRecChiSquareGamma.PosRecChiSquareGamma',
+                                                       'test': 'ChiSquareGamma.PosRecChiSquareGamma',
                                                        'logging_level': 'debug'}})
         self.plugin = self.pax.get_plugin_by_name('PosRecChiSquareGamma')
 
         self.e = Event.empty_event()
+
+    def tearDown(self):
+        delattr(self, 'pax')
+        delattr(self, 'plugin')
 
     def example_event(self, channels_with_something):
         channels = np.array(channels_with_something, dtype='float64')
