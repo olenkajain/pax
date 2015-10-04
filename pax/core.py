@@ -11,12 +11,12 @@ import os
 import re
 from configparser import ConfigParser, ExtendedInterpolation
 
-try:
-    import ROOT     # noqa
-except ImportError:
-    pass
-except SyntaxError:
-    pass
+#try:
+#    import ROOT     # noqa
+#except ImportError:
+#    pass
+#except SyntaxError:
+#    pass
 
 import numpy as np
 

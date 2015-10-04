@@ -57,11 +57,17 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
         try:
             self.client = pymongo.MongoClient(self.config['address'])
             self.database = self.client[self.config['database']]
-            self.event_collection = self.database[self.config['event_collection']]
-            self.aggregate_collection = self.database[self.config['aggregate_collection']]
-            self.plot_collection = self.database[self.config['plot_collection']]
-
-            # Configure collections based on .ini file properties
+            self.dynamic_collections = self.config['dynamic_collections']
+            self.capped_size = self.config['waveform_capped_size']
+            if self.dynamic_collections is not True:
+                self.event_collection = self.database
+                [self.config['event_collection']]
+                self.aggregate_collection = self.database
+                [self.config['aggregate_collection']]
+                self.plot_collection = self.database
+                [self.config['plot_collection']]
+            else:
+                self.event_collection = self.plot_collection = self.database["default"]
 
         except pymongo.errors.ConnectionFailure as e:
             self.log.fatal("Cannot connect to database")
@@ -72,10 +78,23 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
         self.aggregates = self.config['aggregates']
 
     def write_event(self, event):
+        
+        # If we define the collection with a "*" then we want to 
+        # write to collections named for the current run
+        if self.dynamic_collections is True:
+
+            # if the waveform collection doesn't exist we will create it
+            self.event_collection = self.database[ event.dataset_name + "_events" ]
+            self.plot_collection = self.database[ event.dataset_name + "_plots" ]
+            
+            if event.dataset_name + "_events" not in self.database.collection_names():
+                self.database.create_collection(event.dataset_name + "_events", 
+                                                capped=True, 
+                                                size=self.capped_size)
 
         self.write_complete_event(event)
         self.update_aggregate_docs(event)
-        self.write_plot_collection(event)
+        #self.write_plot_collection(event)
 
     def write_complete_event(self, event):
 
@@ -102,12 +121,12 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
         """ Take list of aggregates from config file and update histogram docs
         Do this on a run-by-run basis
         """
-
+        
         for histogram_definition in self.aggregates:
 
             # Take a look if a doc for this plot exists. If not make one.
             query = {"name": histogram_definition['name'], "run": event.dataset_name}
-            if self.aggregate_collection.find_one(query) is None:
+            if self.plot_collection.find_one(query) is None:
 
                 # The doc is just the definition plus the run name plus and array of zeroes for the bins
                 insert_doc = histogram_definition
@@ -136,11 +155,11 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
                     if insert_doc['type'] == 'scatter':
                         insert_doc['data'] = dict(x=[], y=[])
 
-                self.aggregate_collection.insert(insert_doc)
+                self.plot_collection.insert(insert_doc)
 
             # Now we can query the DB and pull the doc. Since we just inserted a doc in case one didn't exist this
             # should always work
-            doc = self.aggregate_collection.find_one(query)
+            doc = self.plot_collection.find_one(query)
             if doc is None:
                 raise RuntimeError("Cannot find MongoDB doc corresponding to requested aggregate plot.")
 
@@ -150,8 +169,8 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
             if doc['type'] == 'h1':
                 for entry in entries:
                     binx = get_bin(entry, doc['xaxis']['bins'], doc['xaxis']['min'], doc['xaxis']['max'])
-                    self.aggregate_collection.update({"_id": ObjectId(doc["_id"])},
-                                                     {"$inc": {"data." + str(binx): 1}})
+                    self.plot_collection.update({"_id": ObjectId(doc["_id"])},
+                                                {"$inc": {"data." + str(binx): 1}})
                 continue
 
             # For scatters simply append the point to a list
@@ -162,7 +181,7 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
                     if type(val).__module__ == numpy.__name__:
                         val = val.item()
                     try:
-                        self.aggregate_collection.update({"_id": doc['_id']}, {"$push": {"data.x": val}})
+                        self.plot_collection.update({"_id": doc['_id']}, {"$push": {"data.x": val}})
                     except:
                         break
                 for val in entries['y']:
@@ -171,7 +190,7 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
                     if type(val).__module__ == numpy.__name__:
                         val = val.item()
                     try:
-                        self.aggregate_collection.update({"_id": doc['_id']}, {"$push": {"data.y": val}})
+                        self.plot_collection.update({"_id": doc['_id']}, {"$push": {"data.y": val}})
                     except:
                         break
 
@@ -183,8 +202,8 @@ class OnlineMonitorOutput(plugin.OutputPlugin):
                 for entry in entries:
                     binx = get_bin(entry[0], doc['xaxis']['bins'], doc['xaxis']['min'], doc['xaxis']['max'])
                     biny = get_bin(entry[1], doc['yaxis']['bins'], doc['yaxis']['min'], doc['yaxis']['max'])
-                    self.aggregate_collection.update({"_id": doc['_id']},
-                                                     {"$inc": {"data." + str(binx) + "." + str(biny): 1}})
+                    self.plot_collection.update({"_id": doc['_id']},
+                                                {"$inc": {"data." + str(binx) + "." + str(biny): 1}})
                 continue
         return
 
