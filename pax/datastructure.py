@@ -206,6 +206,16 @@ class Peak(StrictModel):
                 return rp
         return None
 
+    def get_position_from_preferred_algorithm(self, algorithm_list, get_from=None):
+        """Return reconstructed position by the first algorithm in list,
+        unless it doesn't exist or is a nan position, then moves on to further algorithms."""
+        for algo in algorithm_list:
+            rp = self.get_reconstructed_position_from_algorithm(algo)
+            if rp is not None and rp.x is not float('nan'):
+                return rp
+        else:
+            raise ValueError("Could not find any position from the chosen algorithms: %s" % algorithm_list)
+
     #: Weighted-average distance of top array hits from weighted mean center on top array (cm)
     top_hitpattern_spread = float('nan')
 
@@ -592,6 +602,30 @@ class Event(StrictModel):
 
     def S2s(self, *args, **kwargs):
         return self.s2s(*args, **kwargs)
+
+    @property
+    def main_s1(self):
+        """Return the S1 of the primary interaction, or if that does not exist, the largest S1 in the tpc.
+        Returns None if neither exist"""
+        if self.interactions:
+            return self.interactions[0].s1
+        else:
+            try:
+                return self.s1s()[0]
+            except IndexError:
+                return None
+
+    @property
+    def main_s2(self):
+        """Return the S2 of the primary interaction, or if that does not exist, the largest S2 in the tpc.
+        Returns None if neither exist"""
+        if self.interactions:
+            return self.interactions[0].s2
+        else:
+            try:
+                return self.s2s()[0]
+            except IndexError:
+                return None
 
     def get_peaks_by_type(self, desired_type='all', detector='tpc', sort_key='area', reverse=True):
         """Helper function for retrieving only certain types of peaks
