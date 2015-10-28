@@ -41,8 +41,8 @@ addons:
     - libxft-dev
     - libxext-dev
     - gcc-multilib
-    - libsnappy1
-    - libsnappy-dev
+#    - libsnappy1
+#    - libsnappy-dev
     - python-software-properties
     - gcc-4.8
     - g++-4.8
@@ -59,13 +59,13 @@ install:
   - if [ "${TRAVIS_OS_NAME}" == "osx" ]; then brew install wget; fi
   - wget -nv http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
   
-  - conda config --add channels http://conda.anaconda.org/NLeSC  
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a # Useful for debugging any issues with conda
+  - conda config --add channels http://conda.anaconda.org/NLeSC  
   - conda create -q -n pax python=$TRAVIS_PYTHON_VERSION root=${ROOT} numpy scipy matplotlib pandas cython h5py numba pip python-snappy pytables scikit-learn
   - source activate pax
   - pip install coveralls nose coverage
