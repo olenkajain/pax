@@ -1,9 +1,7 @@
 # Config file for automatic testing at travis-ci.org
 
-#language: python
-language:
-- objective-c
-#sudo: false
+language: python
+sudo: false
 
 python:
   - 2.7
@@ -51,6 +49,9 @@ addons:
 os:
   - osx
   - linux
+
+before_install:
+  - brew update
 
 install:
   - deactivate
