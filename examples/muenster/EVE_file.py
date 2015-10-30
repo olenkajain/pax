@@ -219,7 +219,7 @@ class EveInput(InputFromFolder):
                 event_signal_header_raw = np.fromfile(self.current_evefile, dtype=eve_signal_header, count=1)[0]
                 event_signal_header = header_unpacker(event_signal_header_raw)
                 if board_i == 0:
-                    event.start_time += event_signal_header["trigger_time_tag"]*10*units.ns
+                    event.start_time = int(event.start_time + event_signal_header["trigger_time_tag"]*10*units.ns)
                 for ch_i, channel_is_active in enumerate(channels_active):
                     if channel_is_active == 0:
                         continue  # skip unused channels
