@@ -3,9 +3,6 @@
 language: python
 sudo: false
 
-python:
-  - 2.7
-  - 3.4
 
 notifications:
   email:
@@ -21,34 +18,73 @@ notifications:
 services:
   - mongodb
 
-env:
-  - ROOT=5
-  - ROOT=6
+matrix:
+    include:
+	      -language: generic
+	      os: osx
+      	env: TRAVIS_PYTHON_VERSION=2.7
+      	env: ROOT=5
+      	-language: generic
+      	os: osx
+      	env: TRAVIS_PYTHON_VERSION=3.4
+      	env: ROOT=5
+      	-language: generic
+      	os: osx
+      	env: TRAVIS_PYTHON_VERSION=2.7
+      	env: ROOT=6
+      	-language: generic
+      	os: osx
+      	env: TRAVIS_PYTHON_VERSION=3.4
+      	env: ROOT=6
+      	- python: 2.7
+      	env: 
+      	  - ROOT=5
+      	  - ROOT=6
+      	addons:
+      	  apt:
+      	    sources:
+      	    - ubuntu-toolchain-r-test
+      	    packages:
+      	    - build-essential
+      	    - git
+      	    - dpkg-dev
+      	    - make
+      	    - binutils
+      	    - libx11-dev
+      	    - libxpm-dev
+      	    - libxft-dev
+      	    - libxext-dev
+      	    - gcc-multilib
+      	    #    - libsnappy1
+      	    #    - libsnappy-dev
+      	    - python-software-properties
+      	    - gcc-4.8
+      	    - g++-4.8
+      	- python: 3.4
+      	env: 
+      	  - ROOT=5
+      	  - ROOT=6
+      	addons:
+      	  apt:
+      	    sources:
+      	    - ubuntu-toolchain-r-test
+      	    packages:
+      	    - build-essential
+      	    - git
+      	    - dpkg-dev
+      	    - make
+      	    - binutils
+      	    - libx11-dev
+      	    - libxpm-dev
+      	    - libxft-dev
+      	    - libxext-dev
+      	    - gcc-multilib
+      	    #    - libsnappy1
+      	    #    - libsnappy-dev
+      	    - python-software-properties
+      	    - gcc-4.8
+      	    - g++-4.8
 
-addons:
-  apt:
-    sources:
-    - ubuntu-toolchain-r-test
-    packages:
-    - build-essential
-    - git
-    - dpkg-dev
-    - make
-    - binutils
-    - libx11-dev
-    - libxpm-dev
-    - libxft-dev
-    - libxext-dev
-    - gcc-multilib
-#    - libsnappy1
-#    - libsnappy-dev
-    - python-software-properties
-    - gcc-4.8
-    - g++-4.8
-
-os:
-  - osx
-  - linux
 
 before_install:
   - brew update
