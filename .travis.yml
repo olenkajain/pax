@@ -10,6 +10,7 @@ python:
 
 notifications:
   email:
+    - a_buss09@uni-muenster.de
     - ctunnell@nikhef.nl
     - jaalbers@nikhef.nl
   webhooks:
