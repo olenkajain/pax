@@ -52,7 +52,7 @@ def load_event_class(filename):
 
     # Build the required dictionaries for the vectors of classes
     for name in classnames:
-        C.registered_code[name].load()
+        # C.registered_code[name].load()
         stl.generate("vector<%s>" % name, "<vector>", True)
         stl.generate(name, filename, True)
 
