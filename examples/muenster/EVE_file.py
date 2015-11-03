@@ -160,7 +160,7 @@ class EveInput(InputFromFolder):
             evefile.seek(0, 0)
             positions = []
             fmd = np.fromfile(evefile, dtype=eve_file_header, count=1)[0]
-            if fmd["first_event_number"] != '0xaffe':
+            if fmd["first_event_number"] != '45054':
                 # newer versions of fppgui support an basic event_counter for multiple files
                 j = fmd["first_event_number"]
                 #print(j)
@@ -202,7 +202,7 @@ class EveInput(InputFromFolder):
 
         # Start building the event
         event = Event(
-            n_channels=16,  # never trust the config file
+            n_channels=14,  # never trust the config file
             start_time=int(
                 event_event_header['event_timestamp'] * units.s  # +
                 # event_layer_metadata['utc_time_usec'] * units.us
