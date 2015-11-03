@@ -6,6 +6,12 @@ import ROOT
 import pax      # For version number
 from pax import plugin, datastructure
 
+import rootpy.stl as stl
+from root_numpy._librootnumpy import TYPES_NUMPY2ROOT
+from rootpy.tree.treetypes import convert
+import rootpy.compiled as C
+from rootpy.userdata import BINARY_PATH
+
 overall_header = """
 #include "TFile.h"
 #include "TTree.h"
@@ -17,12 +23,16 @@ overall_header = """
 class_template = """
 {child_classes_code}
 
+{ifndefs}
 class {class_name} : public TObject {{
 
 public:
 {data_attributes}
     ClassDef({class_name}, {class_version});
 }};
+
+#endif
+
 """
 
 
@@ -37,20 +47,25 @@ def load_event_class(filename):
                 classnames.append(m.group(1))
 
     # Load the file in ROOT
-    ROOT.gROOT.ProcessLine('.L %s+' % filename)
+    # ROOT.gROOT.ProcessLine('.L %s+' % filename)
+    C.register_file(filename,classnames)
 
     # Build the required dictionaries for the vectors of classes
     for name in classnames:
-        ROOT.gInterpreter.GenerateDictionary("vector<%s>" % name, filename)
+        C.registered_code[name].load()
+        stl.generate("vector<%s>" % name, "<vector>", True)
+        stl.generate(name, filename, True)
 
+        # ROOT.gInterpreter.GenerateDictionary("vector<%s>" % name, filename)
 
-def cleanup():
-    """Clean any C++ junk (AutoDict, pax_event_class) in the current directory
-    TODO: obviously this is a temp hack, all the stuff should go into some subdir, which we can then delete
-    """
-    for f in os.listdir('.'):
-        if re.search(r'pax_event_class', f) or re.search(r'AutoDict', f):
-            os.remove(os.path.join('.', f))
+#
+# def cleanup():
+#     """Clean any C++ junk (AutoDict, pax_event_class) in the current directory
+#     TODO: obviously this is a temp hack, all the stuff should go into some subdir, which we can then delete
+#     """
+#     for f in os.listdir('.'):
+#         if re.search(r'pax_event_class', f) or re.search(r'AutoDict', f):
+#             os.remove(os.path.join('.', f))
 
 
 class WriteROOTClass(plugin.OutputPlugin):
@@ -64,7 +79,7 @@ class WriteROOTClass(plugin.OutputPlugin):
         self._custom_types = []
 
         # TODO: add overwrite check
-        cleanup()
+        # cleanup()
         self.f = ROOT.TFile(self.config['output_name'] + '.root', "RECREATE")
         self.event_tree = None
 
@@ -81,10 +96,14 @@ class WriteROOTClass(plugin.OutputPlugin):
             # Write the event class C++ definition
             # Do this here, since it requires an instance (for length of arrays)
             # TODO: This fails if the first event doesn't have a peak!!
-            with open('pax_event_class.cpp', mode='w') as outfile:
+
+            full_name = os.path.join(BINARY_PATH, 'modules','pax_event_class.cpp')
+
+            with open(full_name, mode='w') as outfile:
                 outfile.write(overall_header)
                 outfile.write(self._build_model_class(event))
-            load_event_class('pax_event_class.cpp')
+            self.log.debug("wrote file: %s " % full_name)
+            load_event_class(full_name)
             self.log.debug("Event class loaded, creating event")
             self.root_event = ROOT.Event()
             # TODO: setting the splitlevel to 0 or 99 seems to have no effect??
@@ -196,7 +215,9 @@ class WriteROOTClass(plugin.OutputPlugin):
         for field_name, field_type, field_code in self.config['extra_fields'].get(model_name, []):
             class_attributes += '\t%s %s;\n' % (field_type, field_name)
 
-        return class_template.format(class_name=model_name,
+        define = "#ifndef %s" %( model_name.upper() + "\n")  + "#define %s " % ( model_name.upper() + "\n")
+
+        return class_template.format(ifndefs = define, class_name=model_name,
                                      data_attributes=class_attributes,
                                      child_classes_code=child_classes_code,
                                      class_version=pax.__version__.replace('.', ''))
@@ -206,10 +227,11 @@ class ReadROOTClass(plugin.InputPlugin):
 
     def startup(self):
         # Make sure to store the file as an attribute, else it will go out of scope -> garbage collected -> you die
-        if not os.path.exists('./pax_event_class.cpp'):
+        full_name = os.path.join(BINARY_PATH, 'modules','pax_event_class.cpp')
+        if not os.path.exists(full_name):
             raise ValueError("You must provide pax_event_class.cpp in the current directory to read the ROOT format.\n"
                              "Looking for a nice project? Please fix this!")
-        load_event_class('pax_event_class.cpp')
+        load_event_class(full_name)
         if not os.path.exists(self.config['input_name']):
             raise ValueError("Input file %s does not exist" % self.config['input_name'])
         self.f = ROOT.TFile(self.config['input_name'])
