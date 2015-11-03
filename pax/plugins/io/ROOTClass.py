@@ -48,7 +48,7 @@ def load_event_class(filename):
 
     # Load the file in ROOT
     # ROOT.gROOT.ProcessLine('.L %s+' % filename)
-    C.register_file(filename,classnames)
+    C.register_file(filename, classnames)
 
     # Build the required dictionaries for the vectors of classes
     for name in classnames:
@@ -97,7 +97,7 @@ class WriteROOTClass(plugin.OutputPlugin):
             # Do this here, since it requires an instance (for length of arrays)
             # TODO: This fails if the first event doesn't have a peak!!
 
-            full_name = os.path.join(BINARY_PATH, 'modules','pax_event_class.cpp')
+            full_name = os.path.join(BINARY_PATH, 'modules', 'pax_event_class.cpp')
 
             with open(full_name, mode='w') as outfile:
                 outfile.write(overall_header)
@@ -227,7 +227,7 @@ class ReadROOTClass(plugin.InputPlugin):
 
     def startup(self):
         # Make sure to store the file as an attribute, else it will go out of scope -> garbage collected -> you die
-        full_name = os.path.join(BINARY_PATH, 'modules','pax_event_class.cpp')
+        full_name = os.path.join(BINARY_PATH, 'modules', 'pax_event_class.cpp')
         if not os.path.exists(full_name):
             raise ValueError("You must provide pax_event_class.cpp in the current directory to read the ROOT format.\n"
                              "Looking for a nice project? Please fix this!")
