@@ -44,8 +44,8 @@ addons:
 #    - libsnappy1
 #    - libsnappy-dev
     - python-software-properties
-    - gcc-4.8
-    - g++-4.8
+    #- gcc-4.8
+    #- g++-4.8
 
 os:
   - osx
