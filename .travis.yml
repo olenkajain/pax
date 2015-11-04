@@ -47,7 +47,7 @@ addons:
     - g++-4.8
 
 os:
-  - osx
+#  - osx
   - linux
   
 matrix:
