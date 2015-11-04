@@ -82,6 +82,7 @@ install:
 
 # command to run tests, e.g. python setup.py test
 script:
+  - python tests/test_reprocessing.py
   - make test
 #  - make coverage
   - make lint
