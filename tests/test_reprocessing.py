@@ -56,6 +56,8 @@ class TestReprocessing(unittest.TestCase):
             # Open the resulting HDF5
             self.assertTrue(os.path.exists(output2_filename))
             store = h5py.File(output2_filename)
+            print('keys', list(store.keys()))
+            
             self.assertTrue('Event' in store)
             self.assertEqual(store['Event'].len(), 1)
             # TODO: the values below change if we change pax!
