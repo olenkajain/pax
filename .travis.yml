@@ -2,7 +2,8 @@
 
 language: python
 
-sudo: false
+sudo: required
+dist: trusty
 
 python:
   - 2.7
@@ -11,7 +12,7 @@ python:
 notifications:
   email:
     - ctunnell@nikhef.nl
-    - jaalbers@nikhef.nl
+#    - jaalbers@nikhef.nl
   webhooks:
     urls:
       - https://webhooks.gitter.im/e/09d571df0e21d4d4182f
@@ -41,8 +42,6 @@ addons:
     - libxft-dev
     - libxext-dev
     - gcc-multilib
-#    - libsnappy1
-#    - libsnappy-dev
     - python-software-properties
     - gcc-4.8
     - g++-4.8
@@ -70,7 +69,7 @@ install:
   - conda update -q conda
   - conda info -a # Useful for debugging any issues with conda
   - conda config --add channels http://conda.anaconda.org/NLeSC  
-  - conda create -q -n pax python=$TRAVIS_PYTHON_VERSION root=${ROOT} numpy scipy matplotlib pandas cython h5py numba pip python-snappy pytables scikit-learn
+  - conda create -q -n pax python=$TRAVIS_PYTHON_VERSION root=${ROOT} numpy scipy matplotlib pandas cython numba pip python-snappy pytables scikit-learn
   - source activate pax
   - pip install coveralls nose coverage
 
