@@ -29,7 +29,7 @@ lint:
 	flake8 --max-line-length=120 pax tests bin
 
 test:
-	python setup.py test
+	python setup.py nosetests --with-isolation 
 
 test-all:
 	tox
