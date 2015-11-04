@@ -28,7 +28,8 @@ eve_file_header = np.dtype([
     ("version", "<u4"),
     ("buffsize", "<u4"),
     ("timestamp", "<u4"),
-    ("not_used", "<4u4"),
+    ('first_event_number', "<u4"),
+    ("not_used", "<3u4"),
 ])
 
 """This is the datastructure of a header event by the caen boards. It is copied from wfread.cpp from sisdac by Volker Hannen
@@ -131,16 +132,20 @@ class EveInput(InputFromFolder):
 
     def open(self, filename):
         """Opens an EVE file so we can start reading events"""
-        print("Opening .eve file")
+        #print("Opening .eve file: %s" % filename.split("/")[-1])
         self.current_evefile = open(filename, "rb")
 
         # Read in the file metadata
         self.file_metadata = np.fromfile(self.current_evefile, dtype=eve_file_header, count=1)[0]
         fmd = np.fromfile(self.current_evefile, dtype=eve_event_header, count=1)[0]
-        # self.file_metadata = header_unpacker(self.file_metadata)
-        self.file_caen_pars = np.fromfile(self.current_evefile, dtype=eve_caen1724_par_t, count=1)[0]
-        # self.get_first_and_last_event_number(filename)     # apparently this is called explicitly anyway
-        # print(self.event_positions)
+        if (fmd["event_type"] == 4):
+            # self.file_metadata = header_unpacker(self.file_metadata)
+            self.file_caen_pars = np.fromfile(self.current_evefile, dtype=eve_caen1724_par_t, count=1)[0]
+        else:
+            if self.file_caen_pars == None:
+                raise LookupError("self.file_caen_pars has not been set, yet! Is caen_event not in first file of the file list?")
+            print("no caen event in this file. Sticking with old parameters")
+        self.get_first_and_last_event_number(filename)
         self.start_time = self.file_metadata["timestamp"]
         self.sample_duration = 10 * units.ns
         self.stop_time = int(
@@ -148,38 +153,40 @@ class EveInput(InputFromFolder):
 
     def get_first_and_last_event_number(self, filename):
         """Return the first and last event number in file specified by filename"""
-        print("getting first and last event number")
+        print("getting first and last event number of %s" % filename.split("/")[-1])
         with open(filename, 'rb') as evefile:
             evefile.seek(0, 2)
             filesize = evefile.tell()
             evefile.seek(0, 0)
             positions = []
             fmd = np.fromfile(evefile, dtype=eve_file_header, count=1)[0]
-            # print(fmd['byte_order'], fmd['version'], fmd['buffsize'], fmd["timestamp"], [hex(z) for z in fmd["not_used"]])
-            j = 0
-            while evefile.tell() < filesize:  # maybe better with while(true) and try catch IndexOutofBounds for performance reasons
+            if fmd["first_event_number"] != '45054':
+                # newer versions of fppgui support an basic event_counter for multiple files
+                j = fmd["first_event_number"]
+                #print(j)
+            else:
+                j = 0
+            while evefile.tell() < filesize:
+                # maybe better with while(true) and try catch IndexOutofBounds for performance reasons
                 fmd = np.fromfile(evefile, dtype=eve_event_header, count=1)[0]
                 evefile.seek(fmd["event_size"] * 4 - 12, 1)
-                # print(evefile.tell())
-                # np.fromfile(evefile,dtype=np.uint32, count=1)[0]
-                j += 1
                 positions.append(evefile.tell())
-            print("There are %d events in this file" % (j - 1))
-            # print(positions)
-            positions.pop(0)  # throw away first event as it is the cae1724_par event
+            print("There are events %d-%d in this file" % (j, j+len(positions)))
+            #if j == 0:
+            #    positions.pop(0)  # throw away first event as it is the cae1724_par event
 
             self.event_positions = positions
 
-            return 0, j - 3
+            return j, j + len(positions)-2
 
     def close(self):
         """Close the currently open file"""
         print("Closing .eve file")
         # self.current_evefile.close()
 
-    def get_single_event_in_current_file(self, event_position=1):
+    def get_single_event_in_current_file(self, event_number=1):
         # Seek to the requested event
-        # print(self.event_positions)
+        event_position = event_number - self.file_metadata['first_event_number']
         self.current_evefile.seek(self.event_positions[event_position])
         # self.current_evefile.seek(event_position, whence=io.SEEK_CUR)
         # Read event event header, check if it is a real data event or file event header or something different.
@@ -195,7 +202,7 @@ class EveInput(InputFromFolder):
 
         # Start building the event
         event = Event(
-            n_channels=16,  # never trust the config file
+            n_channels=14,  # never trust the config file
             start_time=int(
                 event_event_header['event_timestamp'] * units.s  # +
                 # event_layer_metadata['utc_time_usec'] * units.us
@@ -218,7 +225,7 @@ class EveInput(InputFromFolder):
                     continue  # skip the current board
                 event_signal_header_raw = np.fromfile(self.current_evefile, dtype=eve_signal_header, count=1)[0]
                 event_signal_header = header_unpacker(event_signal_header_raw)
-                #if board_i == 0:
+                # if board_i == 0:
                 #    event.start_time = int(event.start_time + event_signal_header["trigger_time_tag"]*10*units.ns)
                 for ch_i, channel_is_active in enumerate(channels_active):
                     if channel_is_active == 0:

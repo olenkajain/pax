@@ -23,9 +23,11 @@ class SumWaveform(plugin.TransformPlugin):
 
         # Make dictionary mapping pulse -> non-rejected hits found in pulse
         # Assumes hits are still sorted by pulse
-        hits_per_pulse = recarray_tools.dict_group_by(event.all_hits[True ^ event.all_hits['is_rejected']],
+        try:
+            hits_per_pulse = recarray_tools.dict_group_by(event.all_hits[True ^ event.all_hits['is_rejected']],
                                                       'found_in_pulse')
-
+        except IndexError:
+            return event
         # Add top and bottom tpc sum waveforms
         for q in ('top', 'bottom'):
             event.sum_waveforms.append(datastructure.SumWaveform(
