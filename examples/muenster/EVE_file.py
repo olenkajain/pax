@@ -191,15 +191,18 @@ class EveInput(InputFromFolder):
         # self.current_evefile.seek(event_position, whence=io.SEEK_CUR)
         # Read event event header, check if it is a real data event or file event header or something different.
         event_event_header = np.fromfile(self.current_evefile, dtype=eve_event_header, count=1)[0]
+
+        """ commented these lines  as they never happened !!!
         if event_event_header['event_type'] not in [3, 4]:  # 3 = signal event, 4 = header event. Do others occur?
             raise NotImplementedError("Event type %i not yet implemented!"
                                       % event_event_header['event_type'], self.current_evefile.tell())
+
         if event_event_header['event_type'] == 4:
             # it might be possible to get another event header along with caen1724.par stuff
             self.log.error("Unexpected event header at this position, trying to go on")
             self.file_caen_pars = np.fromfile(self.current_evefile, dtype=eve_caen1724_par_t, count=1)[0]
             event_event_header = np.fromfile(self.current_evefile, dtype=eve_event_header, count=1)[0]
-
+        """
         # Start building the event
         event = Event(
             n_channels=14,  # never trust the config file
@@ -214,7 +217,7 @@ class EveInput(InputFromFolder):
 
         event.dataset_name = self.current_filename  # now metadata available
         # as eve files do not have event numbers just count them
-        event.event_number = event_position
+        event.event_number = event_number
         if self.file_caen_pars['zle'] == 0:
             # Zero length encoding disabled
             # Data is just a big bunch of samples from one channel, then next channel, etc
@@ -249,8 +252,9 @@ class EveInput(InputFromFolder):
                 event_signal_header_raw = np.fromfile(self.current_evefile,
                                                       dtype=eve_signal_header,
                                                       count=1)[0]
-                event_signal_header = header_unpacker(event_signal_header_raw)
-                channel_mask = event_signal_header["channel_mask"]
+                # event_signal_header = header_unpacker(event_signal_header_raw)
+                # channel_mask = event_signal_header["channel_mask"]
+                channel_mask = event_signal_header_raw["board_res_0_pattern_channelmask"] & 0xff
                 channels_included = [i for i in range(8)
                                      if (2 ** i & channel_mask) > 0]
 
@@ -258,7 +262,7 @@ class EveInput(InputFromFolder):
                     position = self.current_evefile.tell()
                     channel_size = np.fromfile(self.current_evefile, dtype=np.uint32, count=1)[0]
                     sample_position = 0
-                    while (self.current_evefile.tell() < position + channel_size * 4):
+                    while self.current_evefile.tell() < position + channel_size * 4:
                         cword = np.fromfile(self.current_evefile, dtype=np.uint32, count=1)[0]
                         if cword < 0x80000000:  # if cword is less than 0x80000000 waveform is below zle threshold
                             # skip word
@@ -271,10 +275,12 @@ class EveInput(InputFromFolder):
                                 left=sample_position,
                                 raw_data=chdata
                             ))
-                            sample_position += 2 * (cword & (2 ** 20 - 1))
+                            sample_position += 2 * (cword & 512)  # 1048575 == 2**20 -1
 
         # TODO: Check we have read all data for this event
-        affe = hex(np.fromfile(self.current_evefile, dtype=np.uint32, count=1)[0])
+        # affe = hex(np.fromfile(self.current_evefile, dtype=np.uint32, count=1)[0])
+        # self.current_evefile.seek(4, 1)
+        """
         if affe != '0xaffe':
             print("WARNING : EVENT DID NOT END WITH 0XAFFE!! INSTEAD IT ENDED WITH ", affe)
         if event_position != len(self.event_positions) - 1:
@@ -284,5 +290,5 @@ class EveInput(InputFromFolder):
                 raise RuntimeError("Error during XED reading: after reading event %d from file "
                                    "(event number %d) we should be at position %d, but we are at position %d!" % (
                                        event_position, event.event_number, should_be_at_pos, current_pos))
-
+        """
         return event
