@@ -376,10 +376,10 @@ class Interaction(StrictModel):
     """An interaction in the TPC, reconstructed from a pair of S1 and S2 peaks.
     """
     #: The S1 peak of the interaction
-    s1 = Peak()
+    s1 = INT_NAN
 
     #: The S2 peak of the interaction
-    s2 = Peak()
+    s2 = INT_NAN
 
     ##
     # Position information
@@ -514,26 +514,26 @@ class Event(StrictModel):
     pulses = ListField(Pulse)
 
     #: Number of noise pulses (pulses without any hits found) per channel
-    noise_pulses_in = np.array([], dtype=np.int)
+    noise_pulses_in = np.array([], dtype=np.int16)
 
     #: Number of lone hits (peaks with only one channel contributing) per channel
     #: BEFORE suspicious channel hit rejection.
     #: This is used to check / calibrate the suspicious channel hit rejection.
-    lone_hits_per_channel_before = np.array([], dtype=np.int)
+    lone_hits_per_channel_before = np.array([], dtype=np.int16)
 
     #: Number of lone hits (peaks with only one channel contributing) per channel
     #: AFTER suspicious channel hit rejection.
     #: Keep in mind a "lone hit" peak can consist of several hits, they just have to be in one channel.
     #: Hmm, maybe they should be named single channel peaks rather than lone hits?
-    lone_hits_per_channel = np.array([], dtype=np.int)
+    lone_hits_per_channel = np.array([], dtype=np.int16)
 
     #: Was channel flagged as suspicious?
     is_channel_suspicious = np.array([], dtype=np.bool)
 
     #: Number of hits rejected in the suspicious channel algorithm
-    n_hits_rejected = np.array([], dtype=np.int)
+    n_hits_rejected = np.array([], dtype=np.int16)
 
-    def __init__(self, n_channels, start_time, partial=False, **kwargs):
+    def __init__(self, n_channels, start_time, **kwargs):
 
         # Start time is mandatory, so it is not in kwargs
         kwargs['start_time'] = start_time
@@ -556,11 +556,11 @@ class Event(StrictModel):
             raise ValueError("Negative event duration")
 
         # Initialize numpy arrays -- need to have n_channels and self.length
-        self.noise_pulses_in = np.zeros(n_channels, dtype=np.int)
-        self.n_hits_rejected = np.zeros(n_channels, dtype=np.int)
+        self.noise_pulses_in = np.zeros(n_channels, dtype=np.int16)
+        self.n_hits_rejected = np.zeros(n_channels, dtype=np.int16)
         self.is_channel_suspicious = np.zeros(n_channels, dtype=np.bool)
-        self.lone_hits_per_channel_before = np.zeros(n_channels, dtype=np.int)
-        self.lone_hits_per_channel = np.zeros(n_channels, dtype=np.int)
+        self.lone_hits_per_channel_before = np.zeros(n_channels, dtype=np.int16)
+        self.lone_hits_per_channel = np.zeros(n_channels, dtype=np.int16)
 
     @classmethod
     def empty_event(cls):
@@ -627,7 +627,7 @@ class Event(StrictModel):
         """Return the S1 of the primary interaction, or if that does not exist, the largest S1 in the tpc.
         Returns None if neither exist"""
         if self.interactions:
-            return self.interactions[0].s1
+            return self.peaks[self.interactions[0].s1]
         else:
             try:
                 return self.s1s()[0]
@@ -639,7 +639,7 @@ class Event(StrictModel):
         """Return the S2 of the primary interaction, or if that does not exist, the largest S2 in the tpc.
         Returns None if neither exist"""
         if self.interactions:
-            return self.interactions[0].s2
+            return self.peaks[self.interactions[0].s2]
         else:
             try:
                 return self.s2s()[0]
