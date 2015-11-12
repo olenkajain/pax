@@ -2,7 +2,8 @@
 
 language: python
 
-sudo: false
+sudo: required
+dist: trusty
 
 matrix:
     include:
