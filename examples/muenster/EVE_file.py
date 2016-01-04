@@ -160,7 +160,8 @@ class EveInput(InputFromFolder):
             evefile.seek(0, 0)
             positions = []
             fmd = np.fromfile(evefile, dtype=eve_file_header, count=1)[0]
-            if fmd["first_event_number"] != '45054':
+            if fmd[
+                "first_event_number"] != 45054:  # before unused field is unequal to 45054 in newer versions of fppdaq
                 # newer versions of fppgui support an basic event_counter for multiple files
                 j = fmd["first_event_number"]
                 #print(j)

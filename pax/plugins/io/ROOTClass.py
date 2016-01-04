@@ -15,6 +15,7 @@ import array
 if os.name != 'nt':
     import rootpy.stl as stl
     from rootpy.userdata import BINARY_PATH
+
     PAX_ROOT_CLASS_PATH = os.path.join(BINARY_PATH, 'modules')
 else:
     # On Windows, rootpy doesn't work: just dump everything in the current directory...
@@ -61,9 +62,9 @@ def load_event_class(filename):
     # Load the file in ROOT
     libname = os.path.splitext(filename)[0] + "_cpp"
     if six.PY2:
-        libname = libname+sysconfig.get_config_var('SO')
+        libname = libname + sysconfig.get_config_var('SO')
     else:
-        libname = libname+sysconfig.get_config_var('SHLIB_SUFFIX')
+        libname = libname + sysconfig.get_config_var('SHLIB_SUFFIX')
 
     if os.path.exists(libname):
         if ROOT.gSystem.Load(libname) not in (0, 1):

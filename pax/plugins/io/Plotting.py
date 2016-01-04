@@ -689,7 +689,7 @@ class PeakViewer(PlotBase):
             # (e.g. couldn't draw the main s1 because there is no S1)
             # Just pick the largest peak (regardless of its type)
             self.peak_i = np.argmax([p.area for p in self.peaks])
-            self.log.debug("Largest peak is %d (peak list runs from 0-%d)" % (self.peak_i, len(self.peaks)-1))
+            self.log.debug("Largest peak is %d (peak list runs from 0-%d)" % (self.peak_i, len(self.peaks) - 1))
             self.draw_peak()
 
         # Draw the color bar for the top or bottom hitpattern plot (they share them)

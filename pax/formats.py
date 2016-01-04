@@ -169,7 +169,8 @@ class ROOTDump(TableFormat):
     def __init__(self, *args, **kwargs):
         base_logger.warn("The tabular ROOT output is old and may crash!")
         # Avoid importing ROOT until it is needed
-        import ROOT   # noqa
+        import ROOT  # noqa
+
         self.ROOT = ROOT
 
         # This line makes sure all TTree objects are NOT owned
