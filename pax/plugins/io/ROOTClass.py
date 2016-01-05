@@ -15,7 +15,6 @@ import array
 if os.name != 'nt':
     import rootpy.stl as stl
     from rootpy.userdata import BINARY_PATH
-
     PAX_ROOT_CLASS_PATH = os.path.join(BINARY_PATH, 'modules')
 else:
     # On Windows, rootpy doesn't work: just dump everything in the current directory...
