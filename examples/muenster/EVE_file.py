@@ -132,7 +132,7 @@ class EveInput(InputFromFolder):
 
     def open(self, filename):
         """Opens an EVE file so we can start reading events"""
-        print("Opening .eve file")
+        #print("Opening .eve file: %s" % filename.split("/")[-1])
         self.current_evefile = open(filename, "rb")
 
         # Read in the file metadata
@@ -145,7 +145,7 @@ class EveInput(InputFromFolder):
             if self.file_caen_pars == None:
                 raise LookupError("self.file_caen_pars has not been set, yet! Is caen_event not in first file of the file list?")
             print("no caen event in this file. Sticking with old parameters")
-        self.get_first_and_last_event_number(filename)
+        self.get_event_number_info(filename)
         self.start_time = self.file_metadata["timestamp"]
         self.sample_duration = 10 * units.ns
         self.stop_time = int(
@@ -178,7 +178,7 @@ class EveInput(InputFromFolder):
 
             self.event_positions = positions
 
-            return 0, j - 3, j - 3 + 1
+            return j, j + len(positions) - 2, len(positions)
 
     def close(self):
         """Close the currently open file"""
