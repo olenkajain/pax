@@ -132,7 +132,7 @@ class EveInput(InputFromFolder):
 
     def open(self, filename):
         """Opens an EVE file so we can start reading events"""
-        #print("Opening .eve file: %s" % filename.split("/")[-1])
+        print("Opening .eve file")
         self.current_evefile = open(filename, "rb")
 
         # Read in the file metadata
@@ -151,9 +151,9 @@ class EveInput(InputFromFolder):
         self.stop_time = int(
             self.start_time + self.file_caen_pars["nof_samples"] * self.sample_duration)
 
-    def get_first_and_last_event_number(self, filename):
-        """Return the first and last event number in file specified by filename"""
-        print("getting first and last event number of %s" % filename.split("/")[-1])
+    def get_event_number_info(self, filename):
+        """Return the first, last and total event numbers in file specified by filename"""
+        print("getting first, last and total event number")
         with open(filename, 'rb') as evefile:
             evefile.seek(0, 2)
             filesize = evefile.tell()
@@ -178,7 +178,7 @@ class EveInput(InputFromFolder):
 
             self.event_positions = positions
 
-            return j, j + len(positions)-2
+            return 0, j - 3, j - 3 + 1
 
     def close(self):
         """Close the currently open file"""
