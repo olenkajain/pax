@@ -255,28 +255,28 @@ class Simulator(object):
         return a list of impurity electrons, Xs, Ys, Zs (Z default set to liquid surface)
         """
         output_electron_times = []
-        output_electron_Xs=[]
-        output_electron_Ys=[]
-        output_electron_Zs=[]
+        output_electron_Xs = []
+        output_electron_Ys = []
+        output_electron_Zs = []
 
          # configuration
         sensitive_volume_radius = self.config['tpc_radius']
         after_pulse_probabilities = self.config['after_pulse_probabilities']
-        after_pulse_time_delay_types=self.config['after_pulse_time_delay_types']
-        after_pulse_time_delay_params1=self.config['after_pulse_time_delay_params1']
-        after_pulse_time_delay_params2=self.config['after_pulse_time_delay_params2']
+        after_pulse_time_delay_types = self.config['after_pulse_time_delay_types']
+        after_pulse_time_delay_params1 = self.config['after_pulse_time_delay_params1']
+        after_pulse_time_delay_params2 = self.config['after_pulse_time_delay_params2']
 
          #loop over all photons and all possible after pulse channels
         for photon_id in range(0, len(primary_photon_times) ):
             photon_time = primary_photon_times[photon_id]
-            photon_X=primary_photon_Xs[photon_id]
-            photon_Y=primary_photon_Ys[photon_id]
-            photon_Z=primary_photon_Zs[photon_id]
+            photon_X = primary_photon_Xs[photon_id]
+            photon_Y = primary_photon_Ys[photon_id]
+            photon_Z = primary_photon_Zs[photon_id]
             for after_pulse_type_id in range(0, len(after_pulse_probabilities)):
-                after_pulse_probability=after_pulse_probabilities[after_pulse_type_id]
-                after_pulse_time_delay_type=after_pulse_time_delay_types[after_pulse_type_id]
-                after_pulse_time_delay_param1=after_pulse_time_delay_params1[after_pulse_type_id]
-                after_pulse_time_delay_param2=after_pulse_time_delay_params2[after_pulse_type_id]
+                after_pulse_probability = after_pulse_probabilities[after_pulse_type_id]
+                after_pulse_time_delay_type = after_pulse_time_delay_types[after_pulse_type_id]
+                after_pulse_time_delay_param1 = after_pulse_time_delay_params1[after_pulse_type_id]
+                after_pulse_time_delay_param2 = after_pulse_time_delay_params2[after_pulse_type_id]
                 if np.random.uniform(0,1000000000) > 1000000000.*after_pulse_probability:
                     continue
                 
@@ -285,12 +285,11 @@ class Simulator(object):
                     continue
                 after_pulse_radius2 = np.random.uniform(0, sensitive_volume_radius*sensitive_volume_radius)
                 after_pulse_theta = np.random.uniform(0, np.pi*2.)
-
-                   # fill the outputs
+                # fill the outputs
                 output_electron_times.append(photon_time + after_pulse_time_delay)
-                output_electron_Xs.append( np.sqrt(after_pulse_radius2) * np.cos(after_pulse_theta) )
-                output_electron_Ys.append( np.sqrt(after_pulse_radius2) * np.sin(after_pulse_theta) )
-                output_electron_Zs.append( -self.config['gate_to_anode_distance'] )
+                output_electron_Xs.append(np.sqrt(after_pulse_radius2) * np.cos(after_pulse_theta))
+                output_electron_Ys.append(np.sqrt(after_pulse_radius2) * np.sin(after_pulse_theta))
+                output_electron_Zs.append(-self.config['gate_to_anode_distance'])
         
         return (output_electron_times, output_electron_Xs, output_electron_Ys, output_electron_Zs)
     
@@ -599,7 +598,7 @@ class Simulator(object):
         return self.randomize_photons_over_channels(n_photons,
                                                     channels=range(len(lces)),
                                                     relative_lce_per_channel=lces)
-    
+
     def randomize_photons_over_channels(self, n_photons, channels=None, relative_lce_per_channel=None):
         """Distribute photon_timings over channels according to relative_lce_per_channel
         
@@ -647,36 +646,30 @@ class Simulator(object):
                                "Hitpattern has wrong number of photons "
                                "(%d, should be %d)" % (np.sum(hitp), n_photons))
         return hitp
-    
+
     def distribute_pmt_after_pulses(self, arrival_timings_per_channel):
         # distribute the pmt after pulses
         # Each PMT channel has three parameters for describing the PMT afterpulses:
         # probability for one photon hit to create an after pulse
         # time delay of the after pulse with respect to the primary
         # time delay rms
-
         # transfer the timings before pmt after pulses allocation into a new dictionary,
         # which will the output later
-        arrival_times_per_channel=arrival_timings_per_channel
-        
-        
-        
+        arrival_times_per_channel = arrival_timings_per_channel   
         if len(arrival_times_per_channel)==0:
-            return arrival_times_per_channel
-        
-        
+            return arrival_times_per_channel   
         for channel, photon_detection_times in arrival_times_per_channel.items():
-            #copy one original photon detection times, which will add the after pulses later and replace the original one
+            # copy one original photon detection times, which will add the after pulses later and replace the original one
             photon_detection_times_after_pulses = []
             if len(photon_detection_times)==0:
                 continue
 
-            #get the pmt after pulse parameters
+            # get the pmt after pulse parameters
             pmt_after_pulse_probabilities = self.config['pmt_after_pulse_probabilities'][channel]
             pmt_after_pulse_time_delays = self.config['pmt_after_pulse_time_delays'][channel] #ns
             pmt_after_pulse_time_delay_RMSs = self.config['pmt_after_pulse_time_delay_RMSs'][channel] #ns
             
-            counter=0
+            counter = 0
             for photon_detection_time in photon_detection_times:
                 for pmt_after_pulse_type_id in range(0, len(pmt_after_pulse_probabilities)):
                     pmt_after_pulse_probability = pmt_after_pulse_probabilities[pmt_after_pulse_type_id]
@@ -688,11 +681,11 @@ class Simulator(object):
                         continue
 
                       # generate the after pulse
-                    pmt_after_pulse_real_time_delay=np.random.normal(pmt_after_pulse_time_delay, pmt_after_pulse_time_delay_RMS)
+                    pmt_after_pulse_real_time_delay = np.random.normal(pmt_after_pulse_time_delay, pmt_after_pulse_time_delay_RMS)
                     photon_detection_times_after_pulses.append(photon_detection_time+pmt_after_pulse_real_time_delay)
             
             
-            arrival_times_per_channel[channel]=np.concatenate((photon_detection_times, photon_detection_times_after_pulses))
+            arrival_times_per_channel[channel] = np.concatenate((photon_detection_times, photon_detection_times_after_pulses))
         
         return arrival_times_per_channel
 
@@ -703,7 +696,7 @@ class Simulator(object):
     # uniform: uniform(param1, param2)
     def generate_after_pulse_time_delay(self, after_pulse_time_delay_type, after_pulse_time_delay_param1, after_pulse_time_delay_param2):
         if after_pulse_time_delay_type=='expo':
-            RandomValue=np.random.exponential(after_pulse_time_delay_param1)
+            RandomValue = np.random.exponential(after_pulse_time_delay_param1)
             if RandomValue>after_pulse_time_delay_param2:
                 return -1
             return RandomValue

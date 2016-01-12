@@ -85,8 +85,9 @@ class WaveformSimulator(plugin.InputPlugin):
                     ('t_sigma_%ss' % name):   float('nan'),
                 })
         self.truth_peaks.append(true_peak)
-    # s2() now returns both the photon times and the hitpattern
+
     def s2(self, electrons, t=0., x=0., y=0., z=0.):
+        # s2() now returns both the photon times and the hitpattern
         electron_times = self.simulator.s2_electrons(electrons_generated=electrons, t=t, z=z)
         if not len(electron_times):
             return None
@@ -99,8 +100,9 @@ class WaveformSimulator(plugin.InputPlugin):
                                               x=x,
                                               y=y,
                                               z=-self.config['gate_to_anode_distance']))
-    # s1() now returns both the photon times and the hitpattern
+
     def s1(self, photons, recoil_type, t=0., x=0., y=0., z=0.):
+    # s1() now returns both the photon times and the hitpattern		
         """
         :param photons: total # of photons generated in the S1
         :param recoil_type: 'ER' for electronic recoil, 'NR' for nuclear recoil
@@ -113,52 +115,54 @@ class WaveformSimulator(plugin.InputPlugin):
             return None
         self.store_true_peak('s1', t, x, y, z, photon_times)
         return (photon_times, self.simulator.make_hitpattern(photon_times, x=x, y=y, z=z))
-    # added by Qing Lin for the after pulses
+    
     def after_pulse(self, photon_times, x=0., y=0., z=0.):
-            #"""
-            #:param photon_times: the times of the photons that have potential to generate the photo-ionized electrons
-            #:param x, y, z: the primary s1 or s2 position (currently the after pulse X-Ys still are randomly generated).
-            #:return: a list of hitpatterns
-            #"""
-        
-        n_fold_generation = int(self.config['n_fold_generation_after_pulse']) # after pulse can generate subsequent after pulse as well. This claims how many loops we want to make in simulation
+            # added by Qing Lin for the after pulses
+            # """
+            # :param photon_times: the times of the photons that have potential to generate the photo-ionized electrons
+            # :param x, y, z: the primary s1 or s2 position (currently the after pulse X-Ys still are randomly generated).
+            # :return: a list of hitpatterns
+            # """
+
+        # after pulse can generate subsequent after pulse as well. This claims how many loops we want to make in simulation        
+        n_fold_generation = int(self.config['n_fold_generation_after_pulse']) 
         if not len(photon_times):
             return None
 
-           # output
+        # output
         after_pulse_hitpatterns = []
-           # contain the primary photon timings, and will be updated every loop
-        primary_photon_times=photon_times
-        primary_photon_Xs=[x]*len(primary_photon_times)
-        primary_photon_Ys=[y]*len(primary_photon_times)
-        primary_photon_Zs=[z]*len(primary_photon_times)
+        # contain the primary photon timings, and will be updated every loop
+        primary_photon_times = photon_times
+        primary_photon_Xs = [x]*len(primary_photon_times)
+        primary_photon_Ys = [y]*len(primary_photon_times)
+        primary_photon_Zs = [z]*len(primary_photon_times)
         for fold_id in range(0, n_fold_generation):
             if not len(primary_photon_times):
                 break
 
-                  # for updating primary photon_xxx
-            current_loop_photon_times=[]
-            current_loop_photon_Xs=[]
-            current_loop_photon_Ys=[]
-            current_loop_photon_Zs=[]
-                  # generate the electron times, Xs, Ys, Zs
-            after_pulse_electron_times, after_pulse_electron_Xs, after_pulse_electron_Ys, after_pulse_electron_Zs=self.simulator.after_pulse_electrons(primary_photon_times, primary_photon_Xs, primary_photon_Ys, primary_photon_Zs)
+            # for updating primary photon_xxx
+            current_loop_photon_times = []
+            current_loop_photon_Xs = []
+            current_loop_photon_Ys = []
+            current_loop_photon_Zs = []
+            # generate the electron times, Xs, Ys, Zs
+            after_pulse_electron_times, after_pulse_electron_Xs, after_pulse_electron_Ys, after_pulse_electron_Zs = self.simulator.after_pulse_electrons(primary_photon_times, primary_photon_Xs, primary_photon_Ys, primary_photon_Zs)
 
-                  # loop over the generated electrons
+            # loop over the generated electrons
             for after_pulse_electron_id in range(0, len(after_pulse_electron_times)):
-                after_pulse_electron_time=after_pulse_electron_times[after_pulse_electron_id]
-                after_pulse_X=after_pulse_electron_Xs[after_pulse_electron_id]
-                after_pulse_Y=after_pulse_electron_Ys[after_pulse_electron_id]
-                after_pulse_Z=after_pulse_electron_Zs[after_pulse_electron_id]
+                after_pulse_electron_time = after_pulse_electron_times[after_pulse_electron_id]
+                after_pulse_X = after_pulse_electron_Xs[after_pulse_electron_id]
+                after_pulse_Y = after_pulse_electron_Ys[after_pulse_electron_id]
+                after_pulse_Z = after_pulse_electron_Zs[after_pulse_electron_id]
                 
-                after_pulse_photon_times=self.simulator.s2_scintillation([after_pulse_electron_time], after_pulse_X, after_pulse_Y)
+                after_pulse_photon_times = self.simulator.s2_scintillation([after_pulse_electron_time], after_pulse_X, after_pulse_Y)
                 after_pulse_hitpatterns.append( self.simulator.make_hitpattern(after_pulse_photon_times, after_pulse_X, after_pulse_Y) )
                 current_loop_photon_times.extend(after_pulse_photon_times)
                 current_loop_photon_Xs.extend([after_pulse_X]*len(after_pulse_photon_times) )
                 current_loop_photon_Ys.extend([after_pulse_Y]*len(after_pulse_photon_times) )
                 current_loop_photon_Zs.extend([after_pulse_Z]*len(after_pulse_photon_times) )
 
-                  # replace the primary with
+            # replace the primary with
             primary_photon_times = current_loop_photon_times
             primary_photon_Xs = current_loop_photon_Xs
             primary_photon_Ys = current_loop_photon_Ys
@@ -194,7 +198,7 @@ class WaveformSimulator(plugin.InputPlugin):
             # Implement the after pulse
             if int(q['s1_photons']):
                 # get the main s1 photon times
-                s1_photon_times, s1_hitpattern=self.s1(photons=int(q['s1_photons']),
+                s1_photon_times, s1_hitpattern = self.s1(photons=int(q['s1_photons']),
                                            recoil_type=q['recoil_type'],
                                            t=float(q['t']),
                                            x=x,
@@ -211,7 +215,7 @@ class WaveformSimulator(plugin.InputPlugin):
             
             if int(q['s2_electrons']):
                 # get the main s2 photon times
-                s2_photon_times, s2_hitpattern=self.s2(electrons=int(q['s2_electrons']),
+                s2_photon_times, s2_hitpattern = self.s2(electrons=int(q['s2_electrons']),
                                            t=float(q['t']),
                                            x=x,
                                            y=y,
