@@ -259,7 +259,7 @@ class Simulator(object):
         output_electron_Ys = []
         output_electron_Zs = []
 
-         # configuration
+        # configuration
         sensitive_volume_radius = self.config['tpc_radius']
         after_pulse_probabilities = self.config['after_pulse_probabilities']
         after_pulse_time_delay_types = self.config['after_pulse_time_delay_types']
@@ -689,12 +689,13 @@ class Simulator(object):
         
         return arrival_times_per_channel
 
-    # give the time delay according to the types
-    # Three types currently valid
-    # expo: exponential(param1)
-    # gauss: gaussian(param1, param2)
-    # uniform: uniform(param1, param2)
+
     def generate_after_pulse_time_delay(self, after_pulse_time_delay_type, after_pulse_time_delay_param1, after_pulse_time_delay_param2):
+        # give the time delay according to the types
+        # Three types currently valid
+        # expo: exponential(param1)
+        # gauss: gaussian(param1, param2)
+        # uniform: uniform(param1, param2)        
         if after_pulse_time_delay_type=='expo':
             RandomValue = np.random.exponential(after_pulse_time_delay_param1)
             if RandomValue>after_pulse_time_delay_param2:

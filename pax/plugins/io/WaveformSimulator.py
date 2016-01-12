@@ -96,13 +96,10 @@ class WaveformSimulator(plugin.InputPlugin):
             return None
         self.store_true_peak('s2', t, x, y, z, photon_times, electron_times)
         # Generate S2 hitpattern "at the anode": cue for  simulator to use the S2 LCE map
-        return (photon_times, self.simulator.make_hitpattern(photon_times,
-                                              x=x,
-                                              y=y,
-                                              z=-self.config['gate_to_anode_distance']))
+        return (photon_times,self.simulator.make_hitpattern(photon_times,x=x,y=y,z=-self.config['gate_to_anode_distance']))
 
     def s1(self, photons, recoil_type, t=0., x=0., y=0., z=0.):
-    # s1() now returns both the photon times and the hitpattern		
+        # s1() now returns both the photon times and the hitpattern		
         """
         :param photons: total # of photons generated in the S1
         :param recoil_type: 'ER' for electronic recoil, 'NR' for nuclear recoil
@@ -114,7 +111,7 @@ class WaveformSimulator(plugin.InputPlugin):
         if not len(photon_times):
             return None
         self.store_true_peak('s1', t, x, y, z, photon_times)
-        return (photon_times, self.simulator.make_hitpattern(photon_times, x=x, y=y, z=z))
+        return (photon_times,self.simulator.make_hitpattern(photon_times,x=x,y=y,z=z))
     
     def after_pulse(self, photon_times, x=0., y=0., z=0.):
             # added by Qing Lin for the after pulses
@@ -198,12 +195,7 @@ class WaveformSimulator(plugin.InputPlugin):
             # Implement the after pulse
             if int(q['s1_photons']):
                 # get the main s1 photon times
-                s1_photon_times, s1_hitpattern = self.s1(photons=int(q['s1_photons']),
-                                           recoil_type=q['recoil_type'],
-                                           t=float(q['t']),
-                                           x=x,
-                                           y=y,
-                                           z=z)
+                s1_photon_times, s1_hitpattern = self.s1(photons=int(q['s1_photons']),recoil_type=q['recoil_type'],t=float(q['t']),x=x,y=y,z=z)
                 #based on the s1_photon_times create the after pulses
                 #s1_after_pulse_hitpatterns contain all the hitpattern for each photonionzied electron
                 s1_after_pulse_hitpatterns = self.after_pulse(s1_photon_times, x=x, y=y,z=z)
@@ -215,11 +207,7 @@ class WaveformSimulator(plugin.InputPlugin):
             
             if int(q['s2_electrons']):
                 # get the main s2 photon times
-                s2_photon_times, s2_hitpattern = self.s2(electrons=int(q['s2_electrons']),
-                                           t=float(q['t']),
-                                           x=x,
-                                           y=y,
-                                           z=z)
+                s2_photon_times, s2_hitpattern = self.s2(electrons=int(q['s2_electrons']),t=float(q['t']),x=x,y=y,z=z)
                 #based on the s2_photon_times create the after pulses
                 #s2_after_pulse_hitpatterns contain all the hitpattern for each photonionzied electron
                 s2_after_pulse_hitpatterns = self.after_pulse(s2_photon_times, x=x, y=y,z=z)
