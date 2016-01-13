@@ -124,7 +124,7 @@ class WaveformSimulator(plugin.InputPlugin):
         # after pulse can generate subsequent after pulse as well. This claims how many loops we want to make in simulation        
         n_fold_generation = int(self.config['n_fold_generation_after_pulse']) 
         if not len(photon_times):
-            return None
+            return []
 
         # output
         after_pulse_hitpatterns = []
