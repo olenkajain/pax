@@ -202,7 +202,7 @@ class WaveformSimulator(plugin.InputPlugin):
                 #append s1
                 hitpatterns.append(s1_hitpattern)
                 #append after pulses
-                if not len(s1_after_pulse_hitpatterns):
+                if len(s1_after_pulse_hitpatterns):
                     for s1_after_pulse_hitpattern in s1_after_pulse_hitpatterns:
                         hitpatterns.append(s1_after_pulse_hitpattern)
             
@@ -215,7 +215,7 @@ class WaveformSimulator(plugin.InputPlugin):
                 #append s2
                 hitpatterns.append(s2_hitpattern)
                 #append after pulses
-                if not len(s2_after_pulse_hitpatterns):
+                if len(s2_after_pulse_hitpatterns):
                     for s2_after_pulse_hitpattern in s2_after_pulse_hitpatterns:
                         hitpatterns.append(s2_after_pulse_hitpattern)
         
