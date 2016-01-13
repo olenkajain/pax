@@ -202,8 +202,9 @@ class WaveformSimulator(plugin.InputPlugin):
                 #append s1
                 hitpatterns.append(s1_hitpattern)
                 #append after pulses
-                for s1_after_pulse_hitpattern in s1_after_pulse_hitpatterns:
-                    hitpatterns.append(s1_after_pulse_hitpattern)
+                if not len(s1_after_pulse_hitpatterns):
+                    for s1_after_pulse_hitpattern in s1_after_pulse_hitpatterns:
+                        hitpatterns.append(s1_after_pulse_hitpattern)
             
             if int(q['s2_electrons']):
                 # get the main s2 photon times
@@ -214,8 +215,9 @@ class WaveformSimulator(plugin.InputPlugin):
                 #append s2
                 hitpatterns.append(s2_hitpattern)
                 #append after pulses
-                for s2_after_pulse_hitpattern in s2_after_pulse_hitpatterns:
-                    hitpatterns.append(s2_after_pulse_hitpattern)
+                if not len(s2_after_pulse_hitpatterns):
+                    for s2_after_pulse_hitpattern in s2_after_pulse_hitpatterns:
+                        hitpatterns.append(s2_after_pulse_hitpattern)
         
         hitpatterns = [h for h in hitpatterns if h is not None]
         if len(hitpatterns):
