@@ -90,10 +90,10 @@ class WaveformSimulator(plugin.InputPlugin):
         # s2() now returns both the photon times and the hitpattern
         electron_times = self.simulator.s2_electrons(electrons_generated=electrons, t=t, z=z)
         if not len(electron_times):
-            return None
+            return (None,None)
         photon_times = self.simulator.s2_scintillation(electron_times, x, y)
         if not len(photon_times):
-            return None
+            return (None,None)
         self.store_true_peak('s2', t, x, y, z, photon_times, electron_times)
         # Generate S2 hitpattern "at the anode": cue for  simulator to use the S2 LCE map
         return (photon_times,self.simulator.make_hitpattern(photon_times,x=x,y=y,z=-self.config['gate_to_anode_distance']))
@@ -109,7 +109,7 @@ class WaveformSimulator(plugin.InputPlugin):
         """
         photon_times = self.simulator.s1_photons(photons, recoil_type, x, y, z, t)
         if not len(photon_times):
-            return None
+            return (None, None)
         self.store_true_peak('s1', t, x, y, z, photon_times)
         return (photon_times,self.simulator.make_hitpattern(photon_times,x=x,y=y,z=z))
     
