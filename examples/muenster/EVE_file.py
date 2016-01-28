@@ -296,9 +296,8 @@ class EveInput(InputFromFolder):
                         continue  # skip unused channels
                     chdata = np.fromfile(self.current_evefile, dtype=np.int16,
                                          count=int(event_signal_header["page_size"]))
-
                     event.pulses.append(Pulse(
-                            channel=ch_i + 8 * board_i,
+                            channel=self.config["Channel_to_PMT_mapping"][ch_i + 8 * board_i],
                             left=0,
                             raw_data=np.array(chdata, dtype=np.int16)
                     ))
@@ -332,7 +331,7 @@ class EveInput(InputFromFolder):
                         else:
                             chdata = np.fromfile(self.current_evefile, dtype=np.int16, count=2 * (cword - 0x80000000))
                             event.pulses.append(Pulse(
-                                    channel=ch_i + 8 * board_i,
+                                    channel=self.config["Channel_to_PMT_mapping"][ch_i + 8 * board_i],
                                     left=sample_position,
                                     raw_data=chdata
                             ))
