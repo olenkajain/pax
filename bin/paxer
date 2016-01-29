@@ -27,9 +27,6 @@ from pax import core, utils, formats    # flake8: noqa
 def main():
     input_plugin_aliases, output_plugin_aliases = get_aliases()
     args = get_args(input_plugin_aliases, output_plugin_aliases)
-    if args.version:
-        print(pax.__version__)
-        exit()
 
     override_dict = {'pax': {}}
 
@@ -153,12 +150,12 @@ def get_args(input_plugin_aliases, output_plugin_aliases):
     # Pass in a name to use a pre-cooked config from config:
     config_options = utils.get_named_configuration_options()
     parser.add_argument('--config',
-                        default='XENON100',
                         choices=config_options,
+                        default=[],
                         nargs='+',
                         metavar='CONFIG',
-                        help="Name(s) of the pax configuration(s) to use: default is XENON100. "
-                             "Should be a space-separated list; allowed-values are: " + \
+                        help="Name(s) of the pax configuration(s) to use. "
+                             "Should be a space-separated list; allowed-values are: " +
                              ', '.join(config_options))
     # ... or a path to your own config file:
     parser.add_argument('--config_path',
@@ -198,8 +195,16 @@ def get_args(input_plugin_aliases, output_plugin_aliases):
     parser.add_argument('--version',  action='store_true',
                         help="Print current pax version, then exit")
 
-    return parser.parse_args()
+    args = parser.parse_args()
 
+    if args.version:
+        print(pax.__version__)
+        exit()
+
+    if not args.config or args.config_path:
+        print("You did not specify any configuration!")
+        parser.print_usage()
+        exit()
 
 def get_aliases():
     # Make the output plugin aliases
