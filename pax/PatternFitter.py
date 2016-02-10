@@ -50,7 +50,7 @@ class PatternFitter(object):
         self.log.debug('Description:\n    ' + re.sub(r'\n', r'\n    ', json_data['description']))
         self.log.debug('Data shape: %s' % str(self.data.shape))
         self.log.debug('Will zoom in by factor %s' % zoom_factor)
-        self.dimensions = len(json_data['coordinate_system'])    # Spatial dimensions (other one is sampling points)
+        self.dimensions = len(json_data['coordinate_system'])  # Spatial dimensions (other one is sampling points)
 
         # Zoom the spatial map using linear interpolation, if desired
         if zoom_factor != 1:
@@ -178,11 +178,11 @@ class PatternFitter(object):
         # The following aliases are used in the numexprs below
         areas_observed = areas_observed.copy()[pmt_selection]
         q = self.data[bin_selection + [pmt_selection]]
-        qsum = q.sum(axis=-1)[..., np.newaxis]          # noqa
-        fractions_expected = ne.evaluate("q / qsum")    # noqa
-        total_observed = areas_observed.sum()           # noqa
-        ao = areas_observed                             # noqa
-        square_syst_errors = square_syst_errors[pmt_selection]    # noqa
+        qsum = q.sum(axis=-1)[..., np.newaxis]  # noqa
+        fractions_expected = ne.evaluate("q / qsum")  # noqa
+        total_observed = areas_observed.sum()  # noqa
+        ao = areas_observed  # noqa
+        square_syst_errors = square_syst_errors[pmt_selection]  # noqa
 
         # The actual goodness of fit computation is here...
         # Areas expected = fractions_expected * sum(areas_observed)
@@ -223,7 +223,7 @@ class PatternFitter(object):
         direc = None
         if self.dimensions == 2:
             # Hack to match old chi2gamma results
-            s = lambda d: 1 if d < 0 else -1
+            s = lambda d: 1 if d < 0 else -1  # flake8: noqa
             direc = np.array([[s(start_coordinates[0]), 0],
                               [0, s(start_coordinates[1])]])
 

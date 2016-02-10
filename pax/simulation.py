@@ -124,13 +124,13 @@ class Simulator(object):
         As usual, all units in the same system used by pax (if you specify raw values: ns, cm)
         """
 
-        if z < 0:
-            log.warning("Unphysical depth: %s cm below gate. Not generating S2." % z)
+        if not - self.config['tpc_length'] <= z <= 0:
+            log.warning("Unphysical depth: %s cm below gate. Not generating S2." % - z)
             return []
         log.debug("Creating an s2 from %s electrons..." % electrons_generated)
 
         # Average drift time, taking faster drift velocity after gate into account
-        drift_time_mean = z / self.config['drift_velocity_liquid'] + \
+        drift_time_mean = - z / self.config['drift_velocity_liquid'] + \
             (self.config['gate_to_anode_distance'] - self.config['elr_gas_gap_length']) \
             / self.config['drift_velocity_liquid_above_gate']
 
@@ -522,7 +522,7 @@ class Simulator(object):
 
     def distribute_s2_photons(self, n_photons, x, y):
         if not self.s2_patterns:
-            return self.randomize_photons_over_channels(n_photons, self.config['channels_top'])
+            return self.randomize_photons_over_channels(n_photons, self.config['channels_in_detector']['tpc'])
 
         # How many photons to the top array?
         n_top = np.random.binomial(n=n_photons, p=self.config['s2_mean_area_fraction_top'])
@@ -538,8 +538,7 @@ class Simulator(object):
             hitp = self.distribute_photons_by_pattern(n_top, self.s2_patterns, (x, y))
 
         # The bottom photons are distributed randomly
-        hitp += self.randomize_photons_over_channels(n_photons - n_top,
-                                                     channels=self.config['channels_bottom'])
+        hitp += self.randomize_photons_over_channels(n_photons - n_top, channels=self.config['channels_bottom'])
         return hitp
 
     def distribute_s1_photons(self, n_photons, x, y, z):
@@ -569,7 +568,7 @@ class Simulator(object):
         :return: array of length sim.config['n_channels'] with photon counts per channel
         """
         if n_photons == 0:
-            return np.zeros(self.config['n_channels'])
+            return np.zeros(self.config['n_channels'], dtype=np.int64)
 
         # Include only channels that can receive photons
         if channels is None:

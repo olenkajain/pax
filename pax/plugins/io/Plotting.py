@@ -689,7 +689,7 @@ class PeakViewer(PlotBase):
             # (e.g. couldn't draw the main s1 because there is no S1)
             # Just pick the largest peak (regardless of its type)
             self.peak_i = np.argmax([p.area for p in self.peaks])
-            self.log.debug("Largest peak is %d (peak list runs from 0-%d)" % (self.peak_i, len(self.peaks)-1))
+            self.log.debug("Largest peak is %d (peak list runs from 0-%d)" % (self.peak_i, len(self.peaks) - 1))
             self.draw_peak()
 
         # Draw the color bar for the top or bottom hitpattern plot (they share them)
@@ -750,7 +750,7 @@ class PeakViewer(PlotBase):
         peak_text += 'Top spread: %0.1fcm, Bottom spread: %0.1fcm\n' % (peak.top_hitpattern_spread,
                                                                         peak.bottom_hitpattern_spread)
         pos3d = peak.get_reconstructed_position_from_algorithm('PosRecThreeDPatternFit')
-        if not np.isnan(pos3d.x):
+        if pos3d is not None and not np.isnan(pos3d.x):
             peak_text += '3d position: x=%0.1f, y=%0.1f, z=%0.1f (all cm)' % (pos3d.x, pos3d.y, pos3d.z)
 
         self.peak_text.set_text(self.wrap_multiline(peak_text, self.max_characters))

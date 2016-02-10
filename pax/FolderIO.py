@@ -1,13 +1,15 @@
+"""I/O plugin base classes for input to/from folders or zipfiles
+"""
 import glob
 import zlib
 import os
 import shutil
-import zipfile
 
 from bson import json_util
-from six.moves import input
 
+from six.moves import input
 from pax import utils, plugin
+from pax.datastructure import EventProxy
 
 
 class InputFromFolder(plugin.InputPlugin):
@@ -29,9 +31,10 @@ class InputFromFolder(plugin.InputPlugin):
 
         if not os.path.isdir(input_name):
             if not input_name.endswith('.' + self.file_extension):
-                self.log.warning("input_name %s does not end "
-                                 "with the expected file extension %s" % (input_name,
-                                                                          self.file_extension))
+                self.log.error("input_name %s does not end "
+                               "with the expected file extension %s" % (input_name,
+                                                                        self.file_extension))
+                return
             self.log.debug("InputFromFolder: Single file mode")
             self.init_file(input_name)
 
@@ -52,18 +55,18 @@ class InputFromFolder(plugin.InputPlugin):
         self.select_file(0)
 
         # Set the number of total events
-        self.number_of_events = sum([fr['last_event'] - fr['first_event'] + 1
-                                     for fr in self.raw_data_files])
+        self.number_of_events = sum([fr['n_events'] for fr in self.raw_data_files])
 
     def init_file(self, filename):
         """Find out the first and last event contained in filename
-        Appends {'filename': ..., 'first_event': ..., 'last_event':...} to self.raw_data_files
+        Appends {'filename': ..., 'first_event': ..., 'last_event':..., 'n_events':...} to self.raw_data_files
         """
-        first_event, last_event = self.get_first_and_last_event_number(filename)
+        first_event, last_event, n_events = self.get_event_number_info(filename)
         self.log.debug("InputFromFolder: Initializing %s", filename)
         self.raw_data_files.append({'filename': filename,
                                     'first_event': first_event,
-                                    'last_event': last_event})
+                                    'last_event': last_event,
+                                    'n_events': n_events})
 
     def select_file(self, i):
         """Selects the ith file from self.raw_data_files for reading
@@ -129,11 +132,20 @@ class InputFromFolder(plugin.InputPlugin):
         return self.get_single_event_in_current_file(event_number)
 
     # If reading in from a folder-of-files format not written by FolderIO,
-    # you'll probably have to overwrite this. (e.g. XED does)
-    def get_first_and_last_event_number(self, filename):
-        """Return the first and last event number in file specified by filename"""
-        _, _, first_event, last_event = os.path.splitext(os.path.basename(filename))[0].split('-')
-        return int(first_event), int(last_event)
+    # you'll probably have to overwrite this. (e.g. ReadXED does)
+    def get_event_number_info(self, filename):
+        """Return the first, last and total event numbers in file specified by filename"""
+        stuff = os.path.splitext(os.path.basename(filename))[0].split('-')
+        if len(stuff) == 4:
+            # Old format, which didn't have an event numbers field... progress bar will be off...
+            _, _, first_event, last_event = stuff
+            return int(first_event), int(last_event), int(last_event) - int(first_event) + 1
+        elif len(stuff) == 5:
+            _, _, first_event, last_event, n_events = stuff
+            return int(first_event), int(last_event), int(n_events)
+        else:
+            raise ValueError("Invalid file name: %s. "
+                             "Should be tpcname-something-firstevent-lastevent-nevents.%s" % self.file_extension)
 
     ##
     # Child class should override these
@@ -241,11 +253,12 @@ class WriteToFolder(plugin.OutputPlugin):
         # Rename the temporary file to reflect the events we've written to it
         os.rename(self.tempfile,
                   os.path.join(self.output_dir,
-                               '%s-%d-%06d-%06d.%s' % (self.config['tpc_name'],
-                                                       self.config['run_number'],
-                                                       self.first_event_in_current_file,
-                                                       self.last_event_written,
-                                                       self.file_extension)))
+                               '%s-%d-%06d-%06d-%06d.%s' % (self.config['tpc_name'],
+                                                            self.config['run_number'],
+                                                            self.first_event_in_current_file,
+                                                            self.last_event_written,
+                                                            self.events_written_to_current_file,
+                                                            self.file_extension)))
 
     def shutdown(self):
         if self.has_shut_down:
@@ -270,56 +283,35 @@ class WriteToFolder(plugin.OutputPlugin):
 
 
 ##
-# Zipfile of events
+# Encoders for zipfiles of events
+# Zipfile readers themselves are in plugins/io/Zip.py
+# (they have to be in /pax/plugins/... to be found)
 ##
+class ReadZippedDecoder(plugin.TransformPlugin):
+    do_input_check = False
 
-class ReadZipped(InputFromFolder):
+    def transform_event(self, event_proxy):
+        data = zlib.decompress(event_proxy.data)
+        return self.decode_event(data)
 
-    """Read a folder of zipfiles containing [some format]
-    """
-    file_extension = 'zip'
-
-    def open(self, filename):
-        self.current_file = zipfile.ZipFile(filename)
-        self.event_numbers = sorted([int(x)
-                                     for x in self.current_file.namelist()])
-
-    def get_event_numbers_in_current_file(self):
-        return self.event_numbers
-
-    def get_single_event_in_current_file(self, event_number):
-        with self.current_file.open(str(event_number)) as event_file_in_zip:
-            data = event_file_in_zip.read()
-            data = zlib.decompress(data)
-            return self.from_format(data)
-
-    def close(self):
-        """Close the currently open file"""
-        self.current_file.close()
-
-    def from_format(self, doc):
+    def decode_event(self, event):
         raise NotImplementedError
 
 
-class WriteZipped(WriteToFolder):
-
-    """Write raw data to a folder of zipfiles containing [some format]
-    We use zlib, not zip's deflate, for compression.
+class WriteZippedEncoder(plugin.TransformPlugin):
+    """Encode and compress an event for entry into a zipfile.
+    Note we use zlib, not zip's deflate, for compression.
     """
-    file_extension = 'zip'
+    do_output_check = False
 
-    def open(self, filename):
-        self.current_file = zipfile.ZipFile(filename, mode='w')
+    def startup(self):
         self.compresslevel = self.config.get('compresslevel', 4)
 
-    def write_event_to_current_file(self, event):
-        # Convert the event to the desired format (e.g. bson)
-        data = self.to_format(event)
+    def transform_event(self, event):
+        event_number = event.event_number
+        data = self.encode_event(event)
         data = zlib.compress(data, self.compresslevel)
-        self.current_file.writestr(str(event.event_number), data)
+        return EventProxy(data=data, event_number=event_number)
 
-    def close(self):
-        self.current_file.close()
-
-    def to_format(self, doc):
+    def encode_event(self, event):
         raise NotImplementedError

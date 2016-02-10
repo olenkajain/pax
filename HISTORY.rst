@@ -4,6 +4,31 @@ History
 -------
 
 ------------------
+4.3.1 (2016-01-28)
+------------------
+
+ * Nasty multiprocessing bug fix
+
+------------------
+4.3.0 (2016-01-25)
+------------------
+
+ * Parallelization refactor (#298)
+ * Store meta data in ROOT output (#303)
+ * z coordinate system now negative in liquid (#302)
+ * Neural net reconstruction (#296)
+
+------------------
+4.2.0 (2016-01-11)
+------------------
+
+ * Fixes for ROOT output: memory leak (#282), LED output (#283), long int fields (#289)
+ * Event builder changes (#278)
+ * 3D position reconstruction for S1s (#277)
+ * Hits and Pulses for S1s saved by default (#283)
+ * Raw data filename format changed, progress bar fix (#289)
+
+------------------
 4.1.2 (2015-11-30)
 ------------------
 
