@@ -74,15 +74,15 @@ class Hit(StrictModel):
     #: Weighted sum of absolute deviation (in ns) of hit waveform from hit center
     sum_absolute_deviation = 0.0
 
-    left = 0  #: Index/sample of left bound (inclusive) of peak.
-    right = 0  #: Index/sample of right bound (INCLUSIVE!!) of peak
+    left = 0                 #: Index/sample of left bound (inclusive) of peak.
+    right = 0                #: Index/sample of right bound (INCLUSIVE!!) of peak
 
     @property
     def length(self):
         """Length of the hit (in samples)"""
         return self.right - self.left + 1
 
-    area = 0.0  #: Area of the hit in photoelectrons
+    area = 0.0               #: Area of the hit in photoelectrons
 
     #: Height of highest point in hit (in pe/sample)
     height = 0.0
@@ -183,8 +183,8 @@ class Peak(StrictModel):
     # Time distribution information
     ##
 
-    left = 0  #: Index/sample of left bound (inclusive) in event.
-    right = 0  #: Index/sample of right bound (INCLUSIVE) in event.
+    left = 0                 #: Index/sample of left bound (inclusive) in event.
+    right = 0                #: Index/sample of right bound (INCLUSIVE) in event.
 
     #: Weighted (by hit area) mean of hit times (since event start) [ns]
     hit_time_mean = 0.0

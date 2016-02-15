@@ -67,9 +67,9 @@ def load_event_class(filename=None, force_recompile=False):
     # Load the file in ROOT
     libname = os.path.splitext(filename)[0] + "_cpp"
     if six.PY2:
-        libname = libname + sysconfig.get_config_var('SO')
+        libname = libname+sysconfig.get_config_var('SO')
     else:
-        libname = libname + sysconfig.get_config_var('SHLIB_SUFFIX')
+        libname = libname+sysconfig.get_config_var('SHLIB_SUFFIX')
 
     if os.path.exists(libname) and not force_recompile:
         if ROOT.gSystem.Load(libname) not in (0, 1):
