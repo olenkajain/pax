@@ -5,6 +5,7 @@ import logging
 import six
 import itertools
 import os
+import psutil
 import sys
 import time
 import multiprocessing
@@ -100,6 +101,7 @@ class Processor:
                 self.status = self.manager.Value('i', MP_STATUS['normal'])
                 self.input_queue = self.manager.Queue()
                 self.output_queue = self.manager.Queue()
+                self.last_status_update = time.time()
 
                 # Start worker processes
                 self.processing_workers = []
@@ -137,10 +139,20 @@ class Processor:
             wvsim_config.update(self.config['DEFAULT'])
             wvsim_config.update(self.config['WaveformSimulator'])
             self.simulator = simulation.Simulator(wvsim_config)
-        else:
-            if not just_testing:
+        elif not just_testing:
                 self.log.warning('You did not specify any configuration for the waveform simulator!\n' +
                                  'If you attempt to load the waveform simulator, pax will crash!')
+
+        # Start the MongoDB manager
+        if 'mongo_manager' in pc:
+            # Nice, somebody already set up a mongo manager for us!
+            self.mongo_manager = pc['mongo_manager']
+        elif 'MongoDB' in self.config:
+            from pax.MongoManager import MongoManager
+            self.mongo_manager = MongoManager(self.config['MongoDB'])
+        elif not just_testing:
+            self.log.warning("You didn't specify any configuration for MongoDB!\n"
+                             "if you attempt to use any of the MongoDB plugins, pax will crash!")
 
         # Get the list of plugins from the configuration
         # plugin_names[group] is a list of all plugins we have to initialize in the group 'group'
@@ -391,7 +403,6 @@ class Processor:
                     # The output worker has an additional complication: blocks must be written in proper order
                     self.check_crash()
 
-
                     try:
                         # If we don't have the block we want yet, keep fetching event blocks from the queue .
                         # Note: if one block takes much longer than the others, this would slurp all blocks
@@ -528,10 +539,30 @@ class Processor:
             exit('')
 
     def update_status(self):
-        sys.stdout.write('\rStatus: %s. Processing queue: %d events. Output queue: %s events.' % (
+        # Don't update the status too often: this is expensive
+        if time.time() <= self.last_status_update + 1:
+            return
+        self.last_status_update = time.time()
+
+        def get_mem_usage(pid):
+            """Return memory usage in MB for process with PID pid.
+            Returns 0 if process does not exist (anymore).
+            Maintains a cache to make sure this is not polled more than once per second
+            """
+            try:
+                return psutil.Process(pid).memory_info().rss / 1e6
+            except psutil.NoSuchProcess:
+                return 0
+
+        sys.stdout.write('\rStatus: %s. Processing queue: %d events. Output queue: %s events. '
+                         'RAM usage: %0.1f (master) %0.1f (workers) %0.1f (output)' % (
             [k for k, v in MP_STATUS.items() if v == self.status.value][0],
             self.input_queue.qsize() * self.block_size,
             self.output_queue.qsize() * self.block_size,
+            get_mem_usage(os.getpid()),
+            sum([get_mem_usage(worker.pid) if worker.pid is not None else 0
+                 for worker in self.processing_workers]),
+            (get_mem_usage(self.output_worker.pid) if self.output_worker.pid is not None else 0),
         ))
         sys.stdout.flush()
 
@@ -593,3 +624,5 @@ class Processor:
             self.log.debug("Shutting down %s..." % ap.name)
             ap.shutdown()
             ap.has_shut_down = True
+        if hasattr(self, 'mongo_manager'):
+            self.mongo_manager.shutdown()
