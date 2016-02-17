@@ -1,5 +1,6 @@
 import numpy as np
 import numba
+from scipy.signal import filtfilt
 
 # For diagnostic plotting:
 from textwrap import dedent
@@ -119,6 +120,10 @@ class FindHits(plugin.TransformPlugin):
             # 0.5 is needed to avoid floating-point rounding errors to cause saturation not to be reported
             # Somehow happens only when you use simulated data -- apparently np.clip rounds slightly different
             is_saturated = pulse.maximum >= reference_baseline - pulse.baseline - 0.5
+
+            # Apply optional filter to the pulse, to get rid of instrumental noise (e.g. power supply)
+            if self.config.get('filter_denominator'):
+                w = filtfilt(self.config['filter_numerator'], self.config['filter_denominator'], w)
 
             # Compute thresholds based on noise level
             high_threshold = max(self.config['height_over_noise_high_threshold'] * pulse.noise_sigma,
