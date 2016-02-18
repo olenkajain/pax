@@ -124,7 +124,7 @@ class FindHits(plugin.TransformPlugin):
             # Apply optional filter to the pulse, to get rid of instrumental noise (e.g. power supply)
             if self.config.get('filter_denominator'):
                 orig_w = w
-                w = filtfilt(self.config['ffilter_numerator'], self.config['filter_denominator'], w)
+                w = filtfilt(self.config['filter_numerator'], self.config['filter_denominator'], w)
 
             # Compute thresholds based on noise level
             high_threshold = max(self.config['height_over_noise_high_threshold'] * pulse.noise_sigma,
