@@ -123,7 +123,8 @@ class FindHits(plugin.TransformPlugin):
 
             # Apply optional filter to the pulse, to get rid of instrumental noise (e.g. power supply)
             if self.config.get('filter_denominator'):
-                w = filtfilt(self.config['filter_numerator'], self.config['filter_denominator'], w)
+                orig_w = w
+                w = filtfilt(self.config['ffilter_numerator'], self.config['filter_denominator'], w)
 
             # Compute thresholds based on noise level
             high_threshold = max(self.config['height_over_noise_high_threshold'] * pulse.noise_sigma,
@@ -217,7 +218,11 @@ class FindHits(plugin.TransformPlugin):
             ax2.set_ylabel("pe / sample")
 
             # Plot the signal and noise levels
-            ax1.plot(w, drawstyle='steps-mid', label='Data')
+            if self.config.get('filter_denominator'):
+                ax1.plot(orig_w, drawstyle='steps-mid', label='Raw data')
+                ax1.plot(w, drawstyle='steps-mid', label='Filtered data')
+            else:
+                ax1.plot(w, drawstyle='steps-mid', label='Data')
             ax1.plot(np.ones_like(w) * high_threshold, '--', label='Threshold', color='red')
             ax1.plot(np.ones_like(w) * pulse.noise_sigma, ':', label='Noise level', color='gray')
             ax1.plot(np.ones_like(w) * pulse.minimum, '--', label='Minimum', color='orange')
