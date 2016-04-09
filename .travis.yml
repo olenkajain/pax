@@ -67,8 +67,11 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a # Useful for debugging any issues with conda
-  - conda config --add channels http://conda.anaconda.org/NLeSC  
-  - conda create -q -n pax python=${PYTHON} root=${ROOT} numpy scipy matplotlib pandas cython h5py numba pip python-snappy pytables scikit-learn rootpy psutil
+  - conda config --add channels http://conda.anaconda.org/NLeSC 
+  - conda config --add channels http://conda.anaconda.org/XENON1T
+  - conda config --add channels http://conda.anaconda.org/pypi
+  
+  - conda create -q -n pax python=${PYTHON} root=${ROOT} pax
   - source activate pax
   # tmp hack will be fixed
   # - conda uninstall -q sqlite libpng libx11 
