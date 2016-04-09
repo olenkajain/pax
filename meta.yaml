@@ -1,0 +1,60 @@
+package:
+  name: pax
+  version: "4.8.0"
+ 
+source:
+  git_rev: v4.8.0
+  git_url: https://github.com/XENON1T/pax
+ 
+requirements:
+  build:
+    - python
+    - setuptools
+    - wheel
+    - tqdm
+    - numpy
+    - pyflakes 1.0.0
+    - pymongo
+    - matplotlib
+    - scipy
+    - root
+    - prettytable
+    - pandas
+    - python-snappy
+    - numba
+    - scikit-learn
+    - h5py
+    - flake8
+    - six
+    - numexpr
+    - psutil
+  run:
+    - python
+    - root
+    - wheel
+    - pyflakes 1.0.0
+    - numpy
+    - pymongo
+    - matplotlib
+    - pymongo
+    - scipy
+    - prettytable
+    - pandas
+    - tqdm
+    - python-snappy
+    - numba
+    - scikit-learn
+    - rootpy
+    - h5py
+    - six
+    - numexpr
+    - psutil
+    - flake8
+    - pandas
+    - cython
+    - pytables
+ 
+about:
+  home: https://github.com/XENON1T/pax
+  license: BSD
+  license_file: LICENSE
