@@ -3,49 +3,126 @@
 History
 -------
 
+
+------------------
+4.9.3 (2016-05-12)
+------------------
+
+* Temporarily downgrade scipy due to issues with latest build on some systems
+* Event builder: split collections handling, save-all-pulses / mega event / timed trigger mode
+* Lowered threshold in XENON1T-LED config until we can specify optimal threshold (#357)
+* Waveform simulator bugfix (#354), LED signal simulation (#355)
+
+
+------------------
+4.9.2 (2016-05-03)
+------------------
+
+* Poisson likelihood statistic for position reconstruction, confidence contour improvement (#342)
+* Event builder: parallel queries, delete-as-we-go, optimized queries, better config / run_doc handling
+* Lock-based race condition prevention for ROOT class compilation (see #351)
+* Fix wrong numbers in connector map (#349)
+
+------------------
+4.9.1 (2016-04-25)
+------------------
+
+* Neural net uses correct QEs
+* Small changes for event builder
+* Split S2 afterpulse models so independent for XENON100 and XENON1T
+
+------------------
+4.9.0 (2016-04-18)
+------------------
+
+* XENON1T: gains to 1 in LED mode, amplifiers and positions in pmts config dictionary (#339)
+* XENON100 S2(x,y) map, XENON100 S2 simulation bugfix (#334)
+* Event builder fixes, cax integration
+* Pax version no longer append to output filename (0f26ac0)
+* Multiprocessing and ROOT fix (#337)
+* Waveform simulator afterpulses fix (#341)
+
+
+------------------
+4.8.0 (2016-03-29)
+------------------
+
+* New event builder version (#336)
+
+------------------
+4.7.0 (2016-03-21)
+------------------
+
+* Geant4 input to waveform simulator
+* Tuning classification for XENON1T gas-mode zero-field.
+
+------------------
+4.6.1 (2016-03-07)
+------------------
+
+* Screwed up release, fixing...
+
+------------------
+4.6.0 (2016-03-07)
+------------------
+
+* Confidence levels on position reconstruction
+* Saturation correction bug
+* Several small bug fixes
+* Minor event builder changes
+
+------------------
+4.5.0 (2016-02-26)
+------------------
+
+* .cpp classes now included within the ROOT output file (#323)
+* Area corrections stored separately in datastructure (#322)
+* Waveform simulator refactor, PMT afterpulses support (#321)
+* Small event builder changes (#316, several loose commits)
+
 ------------------
 4.4.1 (2016-02-05)
 ------------------
 
- * Weird outlier bug fixes found in bulk processing
+* Weird outlier bug fixes found in bulk processing
 
 ------------------
 4.4.0 (2016-02-02)
 ------------------
 
- * New event builder iteration (#297)
- * Configuration bugs fixed
+* New event builder iteration (#297)
+* Configuration bugs fixed
 
 ------------------
 4.3.2 (2016-01-31)
 ------------------
 
- * Small argument fixes for default configuration.
+* Small argument fixes for default configuration.
 
 ------------------
 4.3.1 (2016-01-28)
 ------------------
 
- * Nasty multiprocessing bug fix
+* Nasty multiprocessing bug fix
 
 ------------------
 4.3.0 (2016-01-25)
 ------------------
 
- * Parallelization refactor (#298)
- * Store meta data in ROOT output (#303)
- * z coordinate system now negative in liquid (#302)
- * Neural net reconstruction (#296)
+* Parallelization refactor (#298)
+* Store meta data in ROOT output (#303)
+* z coordinate system now negative in liquid (#302)
+* Neural net reconstruction (#296)
 
 ------------------
 4.2.0 (2016-01-11)
 ------------------
 
- * Fixes for ROOT output: memory leak (#282), LED output (#283), long int fields (#289)
- * Event builder changes (#278)
- * 3D position reconstruction for S1s (#277)
- * Hits and Pulses for S1s saved by default (#283)
- * Raw data filename format changed, progress bar fix (#289)
+* Fixes for ROOT output: memory leak (#282), LED output (#283), long int fields (#289)
+* Event builder changes (#278)
+* 3D position reconstruction for S1s (#277)
+* Hits and Pulses for S1s saved by default (#283)
+* Raw data filename format changed, progress bar fix (#289)
 
 ------------------
 4.1.2 (2015-11-30)

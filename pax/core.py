@@ -79,7 +79,7 @@ class Processor:
             self.input_queue = pc['input_queue']
             self.output_queue = pc.get('output_queue', None)
             # Remove multiprocessing objects from config datastructure,
-            # so it can be serialized later
+            # so the configuration can still be serialized to JSON later
             for k in ['input_queue', 'output_queue', 'status']:
                 pc[k] = None
 
@@ -142,17 +142,6 @@ class Processor:
         elif not just_testing:
                 self.log.warning('You did not specify any configuration for the waveform simulator!\n' +
                                  'If you attempt to load the waveform simulator, pax will crash!')
-
-        # Start the MongoDB manager
-        if 'mongo_manager' in pc:
-            # Nice, somebody already set up a mongo manager for us!
-            self.mongo_manager = pc['mongo_manager']
-        elif 'MongoDB' in self.config:
-            from pax.MongoManager import MongoManager
-            self.mongo_manager = MongoManager(self.config['MongoDB'])
-        elif not just_testing:
-            self.log.warning("You didn't specify any configuration for MongoDB!\n"
-                             "if you attempt to use any of the MongoDB plugins, pax will crash!")
 
         # Get the list of plugins from the configuration
         # plugin_names[group] is a list of all plugins we have to initialize in the group 'group'
@@ -411,7 +400,8 @@ class Processor:
                             self.check_crash()
                             heapq.heappush(block_heap, self.input_queue.get(block=True, timeout=1))
                             self.log.debug("Output just got a block, heap is now %d blocks long" % len(block_heap))
-                            self.log.debug("Earliest block: %d, looking for block %s" % (block_heap[0][0], block_id + 1))
+                            self.log.debug("Earliest block: %d, looking for block %s" % (block_heap[0][0],
+                                                                                         block_id + 1))
 
                     except queue.Empty:
                         if can_end and not len(block_heap):
@@ -624,5 +614,3 @@ class Processor:
             self.log.debug("Shutting down %s..." % ap.name)
             ap.shutdown()
             ap.has_shut_down = True
-        if hasattr(self, 'mongo_manager'):
-            self.mongo_manager.shutdown()

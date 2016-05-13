@@ -20,6 +20,24 @@ if six.PY3:
 INT_NAN = -99999    # Do not change without talking to me. -Tunnell 12/3/2015 ... and me. -Jelle 05/08/2015
 
 
+class ConfidenceTuple(StrictModel):
+    """Confidence tuple
+
+    Stores the information of a confidence level of a reconstructed position
+    """
+    level = float('nan')
+    x0 = float('nan')
+    y0 = float('nan')
+    dx = float('nan')
+    dy = float('nan')
+
+    at_edge = False
+
+    @property
+    def failed(self):
+        return np.isnan(self.x0) or np.isnan(self.y0) or np.isnan(self.dx) or np.isnan(self.dy)
+
+
 class ReconstructedPosition(StrictModel):
     """Reconstructed position
 
@@ -42,6 +60,13 @@ class ReconstructedPosition(StrictModel):
     #: Name of algorithm which provided this position
     algorithm = 'none'
 
+    #: Confidence_levels
+    # error_matrix = np.array([], dtype=np.float64)
+    confidence_tuples = ListField(ConfidenceTuple)
+
+    # For convenience: cylindrical coordinates
+    # Must be properties so InterpolatingDetectorMap can transparently use
+    # cylindrical coordinates
     @property
     def r(self):
         """Radial position"""
@@ -102,6 +127,47 @@ class Hit(StrictModel):
     n_saturated = 0
 
 
+class TriggerSignal(StrictModel):
+    """A simplified peak class which is produced by the trigger
+    Like Hit, this class not actually used. So default here are meaningless (except for type spec),
+    np.zeros just sets all to zero.
+
+    All times below are in ns since the start of the run only while we are in the trigger,
+    but in ns since the start of the event as soon as the event is built. The conversion is done in
+    MongoDB.ReadUntriggeredFiller.
+    """
+
+    #: "Type" of the signal. 1 for S1 candidates, 2 for S2 candidates
+    type = 0
+
+    #: Did this signal cause a trigger?
+    trigger = False
+
+    #: Time at which the signal starts.
+    left_time = 0
+
+    #: Time at which the signal ends
+    right_time = 0
+
+    #: Number of pulses contributing to this signal
+    n_pulses = 0
+
+    #: Number of channels contributing at least 1 pulse to this signal
+    n_contributing_channels = 0
+
+    #: Mean pulse time start time
+    time_mean = 0.0
+
+    #: Root mean square deviation of pulse start times
+    time_rms = float('nan')
+
+    #: Total area in the signal (gain-weighted sum of integrals found by Kodiaq pulse integration)
+    area = float('nan')
+
+    # x = float('nan')
+    # y = float('nan')
+
+
 class Peak(StrictModel):
     """A group of nearby hits across one or more channels.
     Peaks will be classified as e.g. s1, s2, lone_hit, unknown, coincidence
@@ -130,6 +196,12 @@ class Peak(StrictModel):
 
     #: Fraction of area in the top PMTs
     area_fraction_top = 0.0
+
+    #: Multiplicative correction on S2 due to LCE variations
+    s2_spatial_correction = 1.0
+
+    #: Multiplicative correction on S2 due to saturation
+    s2_saturation_correction = 1.0
 
     #: Number of hits in the peak, per channel (that is, it's an array with index = channel number)
     hits_per_channel = np.array([], dtype=np.int16)
@@ -232,7 +304,7 @@ class Peak(StrictModel):
         unless it doesn't exist or is a nan position, then moves on to further algorithms."""
         for algo in algorithm_list:
             rp = self.get_reconstructed_position_from_algorithm(algo)
-            if rp is not None and rp.x is not float('nan'):
+            if rp is not None and not np.isnan(rp.x):
                 return rp
         else:
             raise ValueError("Could not find any position from the chosen algorithms: %s" % algorithm_list)
@@ -436,14 +508,24 @@ class Interaction(StrictModel):
     # Interaction properties
     ##
 
-    #: Multiplicative correction to s1 area based on position (due to LCE variations)
+    #: Multiplicative correction on S1 due to LCE variations
+    s1_spatial_correction = 1.0
+
+    #: Multiplicative correction on S1 due to saturation
+    s1_saturation_correction = 1.0
+
+    #: Multiplicative correction on S2 due to electron lifetime
+    s2_lifetime_correction = 1.0
+
+    #: Final multiplicative correction to s1 area based on position (due to LCE variations and saturation)
     s1_area_correction = 1.0
 
     @property
     def corrected_s1_area(self):
         return self.s1.area * self.s1_area_correction
 
-    #: Multiplicative correction to s2 area based on position (due to electron lifetime and LCE variations)
+    #: Final multiplicative correction to s2 area based on position
+    # (due to electron lifetime, LCE variations and saturation)
     s2_area_correction = 1.0
 
     @property
@@ -501,6 +583,9 @@ class Event(StrictModel):
 
     #: A list of :class:`pax.datastructure.Peak` objects.
     peaks = ListField(Peak)
+
+    #: Array of trigger signals contained in the event
+    trigger_signals = np.array([], dtype=TriggerSignal.get_dtype())
 
     #: Array of all hits found in event
     #: These will get grouped into peaks during clustering
@@ -674,7 +759,7 @@ class Event(StrictModel):
         return peaks
 
 
-# An event proxy object which can hold raw data bytes
+# An event proxy object which can hold arbitrary data
 # but still has an event_number attribute
 # The decoders for and WriteZipped & Readzipped knows what to do with this,
 # other code will be fooled into treating it as a normal event

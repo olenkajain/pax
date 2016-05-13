@@ -6,8 +6,8 @@ processing and other data processing on the XENON100/XENON1T raw data.
 * Free software: BSD license
 * Documentation: http://xenon1t.github.io/pax/.
 
-.. image:: https://magnum.travis-ci.com/XENON1T/pax.svg?token=8i3psWNJAskpVjC6qe3w&branch=master
-    :target: https://magnum.travis-ci.com/XENON1T/pax
+.. image:: https://travis-ci.org/XENON1T/pax.svg?branch=master
+    :target: https://travis-ci.org/XENON1T/pax
 .. image:: https://coveralls.io/repos/XENON1T/pax/badge.svg?branch=master
     :target: https://coveralls.io/r/XENON1T/pax?branch=master
 .. image:: http://img.shields.io/badge/gitter-XENON1T/pax-blue.svg 
@@ -80,11 +80,9 @@ some contain C++ code which must be compiled. With Anaconda you can get appropri
 for your platform using the `conda` tool as follows. Make sure to replace <environment_name> with the desired name of your environment (usually it is 'pax' for central installations) in the following command::
 
   conda update conda
-  conda create -n <environment_name> python=3.4 root=5 rootpy numpy scipy matplotlib pandas cython h5py numba=0.21.0 pip python-snappy pytables scikit-learn psutil
-  
-If you do not want ROOT support, or have ROOT-related issues, you can leave out root and rootpy in the above command. Everything in pax, except of course ROOT I/O, will continue to work. You can also try root=6 for the newer version of ROOT.
+  conda create -n <environment_name> python=3.4 root=6 numpy scipy=0.16 matplotlib pandas cython h5py numba pip python-snappy pytables scikit-learn rootpy pymongo psutil jupyter
 
-If you want to use Ipython notebook within this environment (e.g. to import pax libraries), you should also add 'ipython ipython-notebook' to the list of libraries above.
+If you do not want ROOT support, or have ROOT-related issues, you can leave out root and rootpy in the above command. Everything in pax, except of course ROOT I/O, will continue to work. You can also try root=6 for the newer version of ROOT.
 
 Whenever you want to use `pax`, you have to run the following command to set it up your environment (containing all the dependencies)::
   
@@ -159,7 +157,7 @@ Execute::
 
 or
 
-    paxer --input ~/pax/pax/data/xe100_120402_2000_000000.xed --stop_after 1 --plot
+    paxer --input ~/pax/pax/data/xe100_120402_2000_000000.xed --stop_after 1 --plot --config="XENON100"
 
 You should see a nice plot of a XENON100 event.
 
@@ -175,7 +173,7 @@ Now you should be able to run the command::
     
 from anywhere, which will give you a list of other command line options. If you have a graphical display, try `paxer --plot` and `paxer --plot_interactive`. You can select some data with the `--input` option::
 
-  paxer --input /archive/data/xenon100/run_14/xe100_150213_1411/xe100_150213_1411_000000.xed --event 0 --plot
+  paxer --input /archive/data/xenon100/run_14/xe100_150213_1411/xe100_150213_1411_000000.xed --event 0 --plot --config="XENON100"
 
 If you want to do something nonstandard, you can create your own configuration file
 like `my_file.ini`::

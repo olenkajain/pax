@@ -9,7 +9,7 @@ class PosRecThreeDPatternFit(plugin.PosRecPlugin):
         self.is_pmt_alive = np.array(self.config['gains']) > 0
         self.pf = self.processor.simulator.s1_patterns
         self.config.setdefault('minimizer', 'grid')
-        self.config.setdefault('statistic', 'chi2gamma')
+        self.config.setdefault('statistic', 'likelihood_poisson')
         self.config.setdefault('only_s1s', True)
 
     def reconstruct_position(self, peak):
@@ -46,11 +46,12 @@ class PosRecThreeDPatternFit(plugin.PosRecPlugin):
                 # The central position was out of range of the map! Happens occasionally if you don't use seed=best.
                 return None
         else:
-            (x, y, z), gof = self.pf.minimize_gof_grid(center_coordinates=(0, 0, z_mid),
-                                                       grid_size=grid_size, **common_options)
+            (x, y, z), gof, err = self.pf.minimize_gof_grid(center_coordinates=(0, 0, z_mid),
+                                                            grid_size=grid_size, **common_options)
         if np.isnan(gof):
             return None
 
         return {'x': x, 'y': y, 'z': z,
                 'goodness_of_fit': gof,
-                'ndf': ndf}
+                'ndf': ndf,
+                'confidence_tuples': err}

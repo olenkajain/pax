@@ -4,6 +4,7 @@ import glob
 import zlib
 import os
 import shutil
+from operator import itemgetter
 
 from bson import json_util
 
@@ -49,7 +50,17 @@ class InputFromFolder(plugin.InputPlugin):
                 raise ValueError("InputFromFolder: No %s files found in input directory %s!" % (self.file_extension,
                                                                                                 input_name))
             for fn in file_names:
+                if 'trigger_monitor_data.' in fn:
+                    continue
+                if 'temp.' in fn:
+                    self.log.warning("Temporary raw data file found in directory: this data is still being built "
+                                     "or has crashed while building!")
+                    continue
                 self.init_file(fn)
+
+        # Sort the files by first event number, so events are read in order
+        # Files are read in lexically, but in some cases that may not reflect the event order (see issue #345)
+        self.raw_data_files = sorted(self.raw_data_files, key=itemgetter('first_event'))
 
         # Select the first file
         self.select_file(0)
@@ -201,18 +212,19 @@ class WriteToFolder(plugin.OutputPlugin):
 
         self.output_dir = self.config['output_name']
         if os.path.exists(self.output_dir):
-            if self.config.get('overwrite_output', False):
-                if self.config['overwrite_output'] == 'confirm':
-                    print("\n\nOutput dir %s already exists. Overwrite? [y/n]:" % self.output_dir)
-                    if input().lower() not in ('y', 'yes'):
-                        print("\nFine, Exiting pax...\n")
-                        exit()
-                self.log.info("Overwriting output directory %s" % self.output_dir)
-                shutil.rmtree(self.output_dir)
-                os.mkdir(self.output_dir)
-            else:
-                raise ValueError("Output directory %s already exists, can't write your %ss there!" % (
-                    self.output_dir, self.file_extension))
+            if not self.config.get('ignore_existing_dir', False):
+                if self.config.get('overwrite_output', False):
+                    if self.config['overwrite_output'] == 'confirm':
+                        print("\n\nOutput dir %s already exists. Overwrite? [y/n]:" % self.output_dir)
+                        if input().lower() not in ('y', 'yes'):
+                            print("\nFine, Exiting pax...\n")
+                            exit()
+                    self.log.info("Overwriting output directory %s" % self.output_dir)
+                    shutil.rmtree(self.output_dir)
+                    os.mkdir(self.output_dir)
+                else:
+                    raise ValueError("Output directory %s already exists, can't write your %ss there!" % (
+                        self.output_dir, self.file_extension))
         else:
             self.log.info("Creating output directory %s" % self.output_dir)
             os.mkdir(self.output_dir)
@@ -255,7 +267,7 @@ class WriteToFolder(plugin.OutputPlugin):
         # Rename the temporary file to reflect the events we've written to it
         os.rename(self.tempfile,
                   os.path.join(self.output_dir,
-                               '%s-%d-%06d-%06d-%06d.%s' % (self.config['tpc_name'],
+                               '%s-%d-%09d-%09d-%09d.%s' % (self.config['tpc_name'],
                                                             self.config['run_number'],
                                                             self.first_event_in_current_file,
                                                             self.last_event_written,
@@ -313,7 +325,11 @@ class WriteZippedEncoder(plugin.TransformPlugin):
         event_number = event.event_number
         data = self.encode_event(event)
         data = zlib.compress(data, self.compresslevel)
-        return EventProxy(data=data, event_number=event_number)
+        # Add start and stop time to the data, for use in MongoDBClearUntriggered
+        return EventProxy(data=dict(blob=data,
+                                    start_time=event.start_time,
+                                    stop_time=event.stop_time),
+                          event_number=event_number)
 
     def encode_event(self, event):
         raise NotImplementedError
