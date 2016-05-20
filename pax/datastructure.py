@@ -173,7 +173,7 @@ class Peak(StrictModel):
     Peaks will be classified as e.g. s1, s2, lone_hit, unknown, coincidence
     """
     #: Type of peak (e.g., 's1', 's2', ...):
-    #: NB 'lone_hit' incicates one or more hits in a single channel. Use lone_hit_channel to retrieve that channel.
+    #: NB 'lone_hit' indicates one or more hits in a single channel. Use lone_hit_channel to retrieve that channel.
     type = 'unknown'
 
     #: Detector in which the peak was found, e.g. tpc or veto
@@ -235,7 +235,7 @@ class Peak(StrictModel):
     #: Total number of samples with ADC saturation threshold in all channels in this peak
     n_saturated_samples = 0
 
-    #: Total number of channels in the peakw hich have at least one saturated hit
+    #: Total number of channels in the peak which have at least one saturated hit
     n_saturated_channels = 0
 
     #: If the peak is a lone_hit: the channel the hit is / hits are in
@@ -277,6 +277,7 @@ class Peak(StrictModel):
     @property
     def range_90p_area(self):
         return self.range_area_decile[9]
+
 
     @property
     def full_range(self):

@@ -1,6 +1,9 @@
 import numpy as np
 from pax import plugin, exceptions
 from pax.dsputils import saturation_correction
+from functools import reduce
+
+base_sat_threshold = 9000 # need to put this in config
 
 # Must be run before 'BuildInteractions.BasicInteractionProperties'
 
@@ -55,12 +58,18 @@ class S2SaturationCorrection(plugin.TransformPlugin):
                 continue
             if self.s2_patterns is not None and self.do_saturation_correction:
                 # if self.s2_patterns.expected_pattern((xy.x, xy.y)):
+                base_sat_channels = []
+                for hit in peak.hits:
+                    if hit.area > base_sat_threshold:
+                        base_sat_channels.append(hit.channel)
+
+                confused_channels = reduce(np.union1d(peak.saturated_channels, self.zombie_pmts_s2, base_sat_channels))
                 try:
                     peak.s2_saturation_correction *= saturation_correction(
                         peak=peak,
                         channels_in_pattern=self.config['channels_top'],
                         expected_pattern=self.s2_patterns.expected_pattern((xy.x, xy.y)),
-                        confused_channels=np.union1d(peak.saturated_channels, self.zombie_pmts_s2),
+                        confused_channels= confused_channels,
                         log=self.log)
                 except exceptions.CoordinateOutOfRangeException:
                     self.log.debug("Expected light pattern at coordinates "
