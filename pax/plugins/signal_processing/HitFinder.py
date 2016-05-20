@@ -88,6 +88,7 @@ class FindHits(plugin.TransformPlugin):
         # -1 is a placeholder for values that should never appear (0 would be bad as it often IS a possible value)
         hit_bounds_buffer = -1 * np.ones((self.max_hits_per_pulse, 2), dtype=np.int64)
         hits_buffer = np.zeros(self.max_hits_per_pulse, dtype=datastructure.Hit.get_dtype())
+        hits_buffer_total_area = 0
 
         for pulse_i, pulse in enumerate(event.pulses):
             start = pulse.left
@@ -113,13 +114,6 @@ class FindHits(plugin.TransformPlugin):
             if pmt_gain == 0:
                 continue
 
-            # Check if the DAQ pulse was ADC-saturated (clipped)
-            # This means the raw waveform dropped to 0,
-            # i.e. we went digitizer_reference_baseline above the reference baseline
-            # i.e. we went digitizer_reference_baseline - pulse.baseline above baseline
-            # 0.5 is needed to avoid floating-point rounding errors to cause saturation not to be reported
-            # Somehow happens only when you use simulated data -- apparently np.clip rounds slightly different
-            is_saturated = pulse.maximum >= reference_baseline - pulse.baseline - 0.5
 
             # Compute thresholds based on noise level
             high_threshold = max(self.config['height_over_noise_high_threshold'] * pulse.noise_sigma,
@@ -158,6 +152,15 @@ class FindHits(plugin.TransformPlugin):
             build_hits(w, hit_bounds_found, hits_buffer,
                        adc_to_pe, channel, noise_sigma_pe, dt, start, pulse_i)
             hits = hits_buffer[:n_hits_found].copy()
+
+            # Check if the DAQ pulse was ADC-saturated (clipped)
+            # This means the raw waveform dropped to 0,
+            # i.e. we went digitizer_reference_baseline above the reference baseline
+            # i.e. we went digitizer_reference_baseline - pulse.baseline above baseline
+            # 0.5 is needed to avoid floating-point rounding errors to cause saturation not to be reported
+            # Somehow happens only when you use simulated data -- apparently np.clip rounds slightly different
+            is_saturated = (pulse.maximum >= reference_baseline - pulse.baseline - 0.5) or \
+                           (hits_buffer_total_area >= self.config['base_sat_threshold'])
 
             # If the pulse reached the ADC saturation threshold, we should count the saturated samples in each hit
             # This is rare enough that it doesn't need to be in numba
@@ -277,6 +280,7 @@ def build_hits(w, hit_bounds, hits_buffer, adc_to_pe, channel, noise_sigma_pe, d
         hit_bounds should be a numpy array of (left, right) bounds (inclusive)
     Returns nothing.
     """
+    hits_buffer_total_area = 0
     for hit_i in range(len(hit_bounds)):
         amplitude = -999.9
         argmax = -1
@@ -307,6 +311,7 @@ def build_hits(w, hit_bounds, hits_buffer, adc_to_pe, channel, noise_sigma_pe, d
         hits_buffer[hit_i].center = (start + left + center) * dt
         hits_buffer[hit_i].height = w[argmax + left] * adc_to_pe
         hits_buffer[hit_i].index_of_maximum = start + left + argmax
+        hits_buffer_total_area += area
 
 
 @numba.jit(numba.typeof((1.0, 1.0, 1.0, 1.0))(numba.float64[:], numba.int64),
