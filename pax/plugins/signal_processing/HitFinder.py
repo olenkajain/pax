@@ -159,8 +159,8 @@ class FindHits(plugin.TransformPlugin):
             # i.e. we went digitizer_reference_baseline - pulse.baseline above baseline
             # 0.5 is needed to avoid floating-point rounding errors to cause saturation not to be reported
             # Somehow happens only when you use simulated data -- apparently np.clip rounds slightly different
-            is_saturated = (pulse.maximum >= reference_baseline - pulse.baseline - 0.5) or \
-                           (hits_buffer_total_area >= self.config['base_sat_threshold'])
+            is_saturated = ((pulse.maximum >= reference_baseline - pulse.baseline - 0.5) or \
+                           (hits_buffer_total_area >= self.config['base_sat_threshold']))
 
             # If the pulse reached the ADC saturation threshold, we should count the saturated samples in each hit
             # This is rare enough that it doesn't need to be in numba
