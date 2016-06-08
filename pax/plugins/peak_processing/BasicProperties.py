@@ -20,6 +20,7 @@ class BasicProperties(plugin.TransformPlugin):
             if len(hits) == 0:
                 raise ValueError("Can't compute properties of an empty peak!")
 
+            peak.base_sat_channels = np.zeros(self.config['n_channels'], dtype=np.int64)
             peak.left = hits['left'].min()
             peak.right = hits['right'].max()
 
@@ -32,7 +33,14 @@ class BasicProperties(plugin.TransformPlugin):
             else:
                 peak.n_saturated_per_channel = np.zeros(self.config['n_channels'], dtype=np.int16)
 
-            peak.mean_amplitude_to_noise = np.average(hits['height']/hits['noise_sigma'], weights=hits['area'])
+            base_saturated_tot = np.count_nonzero(hits['is_base_sat'])
+            if base_saturated_tot:
+                peak.base_sat_channels = hits[hits['is_base_sat'] == True]['channel']
+                # print(sorted(peak.base_sat_channels))
+            else:
+                peak.base_sat_channels = np.zeros(self.config['n_channels'], dtype=np.int64)
+
+            peak.mean_amplitude_to_noise= np.average(hits['height']/hits['noise_sigma'], weights=hits['area'])
 
             peak.area = np.sum(peak.area_per_channel)
             peak.n_hits = np.sum(peak.hits_per_channel)
