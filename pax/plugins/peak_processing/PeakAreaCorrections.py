@@ -1,4 +1,5 @@
 import numpy as np
+from functools import reduce
 from pax import plugin, exceptions
 from pax.dsputils import saturation_correction
 
@@ -60,7 +61,8 @@ class S2SaturationCorrection(plugin.TransformPlugin):
                         peak=peak,
                         channels_in_pattern=self.config['channels_top'],
                         expected_pattern=self.s2_patterns.expected_pattern((xy.x, xy.y)),
-                        confused_channels=np.union1d(peak.saturated_channels, self.zombie_pmts_s2),
+                        confused_channels=reduce(np.union1d, (peak.saturated_channels,
+                                                            peak.base_sat_channels, self.zombie_pmts_s2)),
                         log=self.log)
                 except exceptions.CoordinateOutOfRangeException:
                     self.log.debug("Expected light pattern at coordinates "

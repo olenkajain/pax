@@ -1,5 +1,5 @@
 import numpy as np
-
+from functools import reduce
 from pax import plugin, exceptions
 from pax.datastructure import Interaction
 from pax.dsputils import saturation_correction
@@ -78,7 +78,6 @@ class BasicInteractionProperties(plugin.TransformPlugin):
             ia.s1_spatial_correction /= self.s1_light_yield_map.get_value_at(ia)
 
             if self.s1_patterns is not None:
-                confused_s1_channels = np.union1d(s1.saturated_channels, self.zombie_pmts_s1)
 
                 # Correct for S1 saturation
                 try:
@@ -87,14 +86,16 @@ class BasicInteractionProperties(plugin.TransformPlugin):
                             peak=s1,
                             channels_in_pattern=self.tpc_channels,
                             expected_pattern=self.s1_patterns.expected_pattern((ia.x, ia.y, ia.z)),
-                            confused_channels=confused_s1_channels,
+                            confused_channels=reduce(np.union1d, (s1.saturated_channels,
+                                            s1.base_sat_channels, self.zombie_pmts_s1)),
                             log=self.log)
 
                     # Compute the S1 pattern fit statistic
                     ia.s1_pattern_fit = self.s1_patterns.compute_gof(
                         (ia.x, ia.y, ia.z),
                         s1.area_per_channel[self.tpc_channels],
-                        pmt_selection=np.setdiff1d(self.tpc_channels, confused_s1_channels),
+                        pmt_selection=np.setdiff1d(self.tpc_channels, reduce(np.union1d, (s1.saturated_channels,
+                                                s1.base_sat_channels, self.zombie_pmts_s1))),
                         statistic=self.config['s1_pattern_statistic'])
 
                 except exceptions.CoordinateOutOfRangeException:

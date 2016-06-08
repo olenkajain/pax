@@ -126,6 +126,9 @@ class Hit(StrictModel):
     #: Number of samples in this hit where the ADC saturates
     n_saturated = 0
 
+    #: If hit.area above base saturation threshold -> is_base_sat = True
+    is_base_sat = False
+
 
 class TriggerSignal(StrictModel):
     """A simplified peak class which is produced by the trigger
@@ -220,6 +223,9 @@ class Peak(StrictModel):
 
     #: Number of samples with ADC saturation in this peak, per channel
     n_saturated_per_channel = np.array([], dtype=np.int16)
+
+    #: Array of base saturated channels
+    base_sat_channels = np.array([], dtype=np.int64)
 
     @property
     def is_channel_saturated(self):
