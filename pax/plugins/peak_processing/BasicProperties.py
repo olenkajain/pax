@@ -20,7 +20,6 @@ class BasicProperties(plugin.TransformPlugin):
             if len(hits) == 0:
                 raise ValueError("Can't compute properties of an empty peak!")
 
-            peak.base_sat_channels = np.zeros(self.config['n_channels'], dtype=np.int64)
             peak.left = hits['left'].min()
             peak.right = hits['right'].max()
 
@@ -36,7 +35,11 @@ class BasicProperties(plugin.TransformPlugin):
             base_saturated_tot = np.count_nonzero(hits['is_base_sat'])
             if base_saturated_tot:
                 peak.base_sat_channels = hits[hits['is_base_sat'] == True]['channel']
-                # print(sorted(peak.base_sat_channels))
+                if len(peak.base_sat_channels)/len(hits['channel']) > self.config['allowed_saturation_percentage']:
+                    temp = hits[hits['is_base_sat'] == True]
+                    largest_area_array = np.sort(temp, order='area')[::-1]
+                    peak.base_sat_channels = (largest_area_array['channel'][:
+                    int(self.config['allowed_saturation_percentage']*len(hits['channel'])) + 1])
             else:
                 peak.base_sat_channels = np.zeros(self.config['n_channels'], dtype=np.int64)
 
