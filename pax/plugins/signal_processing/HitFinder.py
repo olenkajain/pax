@@ -315,7 +315,6 @@ def build_hits(w, hit_bounds, hits_buffer, adc_to_pe, channel, noise_sigma_pe, d
 
         if hits_buffer[hit_i].area > base_sat_threshold:
             hits_buffer[hit_i].is_base_sat = True
-            print(hits_buffer[hit_i].area)
 
 
 @numba.jit(numba.typeof((1.0, 1.0, 1.0, 1.0))(numba.float64[:], numba.int64),
