@@ -22,7 +22,7 @@ class BasicProperties(plugin.TransformPlugin):
 
             peak.left = hits['left'].min()
             peak.right = hits['right'].max()
-
+            peak.base_sat_channels = np.zeros(self.config['n_channels'], dtype=np.int64)
             peak.area_per_channel = dsputils.count_hits_per_channel(peak, self.config, weights=hits['area'])
             peak.hits_per_channel = dsputils.count_hits_per_channel(peak, self.config).astype(np.int16)
             n_saturated_tot = hits['n_saturated'].sum()
