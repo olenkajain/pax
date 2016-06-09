@@ -22,7 +22,7 @@ class BasicProperties(plugin.TransformPlugin):
 
             peak.left = hits['left'].min()
             peak.right = hits['right'].max()
-            peak.base_sat_channels = np.zeros(self.config['n_channels'], dtype=np.int64)
+            peak.base_sat_channels = np.array([0],dtype=np.int64)
             peak.area_per_channel = dsputils.count_hits_per_channel(peak, self.config, weights=hits['area'])
             peak.hits_per_channel = dsputils.count_hits_per_channel(peak, self.config).astype(np.int16)
             n_saturated_tot = hits['n_saturated'].sum()
@@ -41,9 +41,9 @@ class BasicProperties(plugin.TransformPlugin):
                     peak.base_sat_channels = (largest_area_array['channel'][:
                     int(self.config['allowed_saturation_percentage']*len(hits['channel'])) + 1])
             else:
-                peak.base_sat_channels = np.zeros(self.config['n_channels'], dtype=np.int64)
+                peak.base_sat_channels = np.array([0], dtype=np.int64)
 
-            peak.mean_amplitude_to_noise= np.average(hits['height']/hits['noise_sigma'], weights=hits['area'])
+            peak.mean_amplitude_to_noise = np.average(hits['height']/hits['noise_sigma'], weights=hits['area'])
 
             peak.area = np.sum(peak.area_per_channel)
             peak.n_hits = np.sum(peak.hits_per_channel)
