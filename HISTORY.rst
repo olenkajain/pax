@@ -4,6 +4,36 @@ History
 -------
 
 ------------------
+5.0.0 (2016-06-08)
+------------------
+
+* Ready for XENON1T data
+* New clustering (#372)
+* Extended trigger window (#369)
+
+------------------
+4.11.0 (2016-06-06)
+------------------
+
+* Run database interface (#366)
+* Revive PMTs that were masked (#371)
+
+------------------
+4.10.2 (2016-06-01)
+------------------
+
+* ROOT fix (#370)
+* Configurable low-level info (#368)
+* Event builder fixes (scattered commits)
+
+------------------
+4.10.1 (2016-05-30)
+------------------
+
+* Add PMT information (#364)
+* Event builder changes (#365 plus other commits), including processing related changes.
+
+------------------
 4.10.0 (2016-05-20)
 ------------------
 
