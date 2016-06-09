@@ -104,7 +104,7 @@ class FindHits(plugin.TransformPlugin):
             w = reference_baseline - w
 
             _results = compute_pulse_properties(w, self.initial_baseline_samples)
-            pulse.baseline, pulse.baseline_increase, pulse.noise_sigma, pulse.minimum, pulse.maximum = _results
+            pulse.baseline, pulse.noise_sigma, pulse.minimum, pulse.maximum = _results
 
             w -= pulse.baseline
 
