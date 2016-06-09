@@ -87,7 +87,7 @@ class BasicInteractionProperties(plugin.TransformPlugin):
                             channels_in_pattern=self.tpc_channels,
                             expected_pattern=self.s1_patterns.expected_pattern((ia.x, ia.y, ia.z)),
                             confused_channels=reduce(np.union1d, (s1.saturated_channels,
-                                            s1.base_sat_channels, self.zombie_pmts_s1)),
+                                                                  s1.base_sat_channels, self.zombie_pmts_s1)),
                             log=self.log)
 
                     # Compute the S1 pattern fit statistic
