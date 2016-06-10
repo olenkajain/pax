@@ -80,7 +80,7 @@ Pax depends on several other python packages. While most python packages will in
 some contain C++ code which must be compiled. With Anaconda you can get appropriate binaries 
 for your platform using the `conda` tool as follows. Make sure to replace <environment_name> with the desired name of your environment (usually it is 'pax' for central installations) in the following command::
 
-  conda update conda
+  conda install -q anaconda-client conda conda-env
   conda env create -n pax_environment_name XENON1T/pax_head
 
 You can replace "pax_environment_name" with whatever.  Whenever you want to use `pax`, you have to run the following command to set it up your environment (containing all the dependencies)::
