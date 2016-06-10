@@ -91,7 +91,7 @@ You can put this in your `.bashrc` if you want it to be setup when you login. Fo
 
 -----------------------------------
 
-Of course we assume you have a functional basic compilation environment. On a fresh Ubuntu you may have to do e.g.
+Of course we assume you have a functional basic compilation environment. On a fresh Ubuntu you may have to do e.g.::
 
   sudo apt-get install build-essential
   
