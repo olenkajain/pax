@@ -67,6 +67,7 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda install -q anaconda-client conda conda-env
   - conda info -a # Useful for debugging any issues with conda
+  - conda config --add channels defaults
   - conda config --add channels http://conda.anaconda.org/NLeSC
   - conda config --add channels http://conda.anaconda.org/XENON1T
   - conda env create -q -n pax XENON1T/pax_head
