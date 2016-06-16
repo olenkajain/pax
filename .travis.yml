@@ -65,14 +65,13 @@ install:
   - export PATH="$HOME/miniconda/bin:$PATH"
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
-  - conda install -q anaconda-client conda conda-env
+  - conda install -q anaconda-client conda=3.19.3 conda-env=2.4.5
   - conda info -a # Useful for debugging any issues with conda
   - conda config --add channels defaults
   - conda config --add channels http://conda.anaconda.org/NLeSC
   - conda config --add channels http://conda.anaconda.org/XENON1T
   - conda env create -q -n pax_head XENON1T/pax_head
-  - source activate pax_head
-  - conda install -q python=${PYTHON} root=${ROOT} 
+  - conda install -q -n pax_head python=${PYTHON} root=${ROOT} 
   - source activate pax_head
 
   # Install pax
