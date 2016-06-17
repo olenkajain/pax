@@ -69,8 +69,7 @@ install:
   - conda info -a # Useful for debugging any issues with conda
   - conda config --add channels defaults
   - conda config --add channels http://conda.anaconda.org/NLeSC
-  - conda config --add channels http://conda.anaconda.org/XENON1T
-  - if [ "${PYTHON}" == "3.4" ]; then conda env create -q -n pax_head XENON1T/pax_head; conda install -q -n pax_head root=${ROOT}; fi  # this is python3
+  - if [ "${PYTHON}" == "3.4" ]; then conda config --add channels http://conda.anaconda.org/XENON1T; conda env create -q -n pax_head XENON1T/pax_head; conda install -q -n pax_head root=${ROOT}; fi  # this is python3
   - if [ "${PYTHON}" == "2.7" ]; then conda create -q -n pax_head python=${PYTHON} root=${ROOT} numpy scipy=0.16 matplotlib pandas cython h5py numba pip python-snappy pytables scikit-learn rootpy psutil jupyter; fi
   - source activate pax_head
 
