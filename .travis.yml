@@ -70,7 +70,8 @@ install:
   - conda config --add channels defaults
   - conda config --add channels http://conda.anaconda.org/NLeSC
   - conda config --add channels http://conda.anaconda.org/XENON1T
-  - if [ "${PYTHON}" == 3.4 ]; conda env create -n pax_head XENON1T/pax_head; conda install -n pax_head root=${ROOT}; fi  # this is python3
+  - if [ "${PYTHON}" == 3.4 ]; conda env create -n pax_head XENON1T/pax_head; fi  # this is python3
+  - if [ "${PYTHON}" == 3.4 ]; conda install -n pax_head root=${ROOT}; fi  # this is python3
   - if [ "${PYTHON}" == 2.7 ]; conda install -q -n pax_head python=${PYTHON} root=${ROOT} numpy scipy=0.16 matplotlib pandas cython h5py numba pip python-snappy pytables scikit-learn rootpy psutil jupyter; fi
   - source activate pax_head
 
