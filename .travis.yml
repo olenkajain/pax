@@ -70,7 +70,7 @@ install:
   - conda config --add channels defaults
   - conda config --add channels http://conda.anaconda.org/NLeSC
   - conda config --add channels http://conda.anaconda.org/XENON1T
-  - conda env create -q -n pax_head XENON1T/pax_head
+  - conda env create -q -n pax_head -f XENON1T/pax_head
   - conda install -q -n pax_head python=${PYTHON} root=${ROOT} six psutil numexpr
   - source activate pax_head
 
