@@ -32,6 +32,7 @@ class WriteDynamoDB(plugin.OutputPlugin):
         insert_doc = {            
             "event_number": None,
             "dataset_name": None,
+            "run_number": self.config['run_number'],
             "cs1": None,
             "cs2": None,
             "s1": None,
