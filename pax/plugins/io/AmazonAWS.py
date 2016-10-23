@@ -32,7 +32,7 @@ class WriteDynamoDB(plugin.OutputPlugin):
         insert_doc = {            
             "event_number": None,
             "dataset_name": None,
-            "run_number": self.config['run_number'],
+            "run_number": int(self.config['run_number']),
             "cs1": None,
             "cs2": None,
             "s1": None,
@@ -107,6 +107,8 @@ class WriteDynamoDB(plugin.OutputPlugin):
             los1 = None
             alos1 = 0
             for s1 in s1s:
+                if s1 == interaction.s1:
+                    continue
                 try:
                     if peaks[s1].area > alos1:
                         alos1 = peaks[s1].area
@@ -119,6 +121,8 @@ class WriteDynamoDB(plugin.OutputPlugin):
             los2 = None
             alos2 = 0
             for s2 in s2s:
+                if s2 == interaction.s2:
+                    continue
                 try:
                     if peaks[s2].area > alos2:
                         alos2 = peaks[s2].area
