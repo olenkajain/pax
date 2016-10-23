@@ -106,31 +106,17 @@ class WriteDynamoDB(plugin.OutputPlugin):
             # Now we want the largest other s1 and largest other s1 
             los1 = None
             alos1 = 0
-            for s1 in s1s:
-                if s1 == interaction.s1:
-                    continue
-                try:
-                    if peaks[s1].area > alos1:
-                        alos1 = peaks[s1].area
-                        los1 = peaks[s1]
-                except:
-                    if s1.area > alos1:
-                        alos1 = s1.area
-                        los1 = s1
-
             los2 = None
             alos2 = 0
-            for s2 in s2s:
-                if s2 == interaction.s2:
-                    continue
-                try:
-                    if peaks[s2].area > alos2:
-                        alos2 = peaks[s2].area
-                        los2 = peaks[s2]
-                except:
-                    if s2.area > alos2:
-                        alos2 = s2.area
-                        los2 = s2
+            for i, peak in enumerate(event.peaks):            
+                if i == interaction.s1 or i == interaction.s2:  
+                    continue                
+                if peak.type == 's1' and peak.area > alos1:
+                    alos1 = peak.area
+                    los1 = peak
+                elif peak.type == 's2' and peak.area > alos2:
+                    alos2 = peak.area
+                    los2 = peak
 
             if los1 is not None:
                 insert_doc['largest_other_s1'] = los1.area
