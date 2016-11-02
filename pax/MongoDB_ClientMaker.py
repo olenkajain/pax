@@ -3,6 +3,7 @@ import re
 import os
 
 import pymongo
+import mongomock
 try:
     from monary import Monary
 except Exception:
@@ -16,13 +17,16 @@ class ClientMaker:
     in particular user, password, host and port.
     """
     def __init__(self, config):
+        self.log = logging.getLogger('Mongo client maker')
+        if self.config.get('mongomock'):
+            # We only have to create Mock Mongodb objects
+            return
         if 'password' not in config:
             config['password'] = os.environ.get('MONGO_PASSWORD')
             if not config['password']:
                 raise ValueError("Please provide the mongo password in the environment variable MONGO_PASSWORD")
         # Select only relevant config options, so we can just pass this to .format later.
         self.config = {k: config[k] for k in ('user', 'password', 'host', 'port')}
-        self.log = logging.getLogger('Mongo client maker')
 
     def get_client(self, database_name=None, uri=None, monary=False, host=None, **kwargs):
         """Get a Mongoclient. Returns Mongo database object.
@@ -54,7 +58,13 @@ class ClientMaker:
                 # Some other URI was provided. Just try it and hope for the best
                 pass
 
-        if monary:
+        if self.config.get('mongomock'):
+            self.log.debug("Connecting to fake Mongo with uri %s" % uri)
+            if monary:
+                raise NotImplementedError("Cannot mock monary")
+            return mongomock.MongoClient(uri, **kwargs)
+
+        elif monary:
             self.log.debug("Connecting to Mongo via monary using uri %s" % uri)
             client = Monary(uri, **kwargs)
             self.log.debug("Succesfully connected via monary (probably...)")

@@ -159,11 +159,11 @@ def main():
             if argname in ('edge_safety_margin', 'batch_window'):
                 argval *= units.s
             mongo_settings_override[argname] = argval
-        config_dict = combine_configs(config_dict, dict(MongoDB=mongo_settings_override))
+        config_dict = combine_configs(config_dict, dict(Eventbuilder=mongo_settings_override))
 
-        # Acquisition monitor filename is a mongo db option...
+        # Acquisition monitor filename is an Eventbuilder plugin option...
         if config_dict.get('save_acquisition_monitor_pulses', True):
-            config_dict['MongoDB']['acquisition_monitor_file_path'] = os.path.join(
+            config_dict['Eventbuilder']['acquisition_monitor_file_path'] = os.path.join(
                 data_info_entry['location'], 'acquisition_monitor_data.pickles')
 
         # Apply command-line override settings for trigger

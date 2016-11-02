@@ -1,4 +1,4 @@
-"""Interfacing to MongoDB
+"""Building events from MongoDB
 
 MongoDB is used as a data backend within the DAQ.  For example, 'kodiaq', which
 reads out the digitizers, will write data to MongoDB.  This data from kodiaq can
@@ -22,7 +22,7 @@ from pax.datastructure import Event, Pulse, EventProxy
 from pax import plugin, trigger, units
 
 
-class MongoBase:
+class EventbuilderBase:
 
     _cached_subcollection_handles = {}
 
@@ -31,7 +31,7 @@ class MongoBase:
         self.secret_mode = self.config['secret_mode']
 
         # Connect to the runs db
-        self.cm = ClientMaker(self.processor.config['MongoDB'])
+        self.cm = ClientMaker(self.processor.config['Eventbuilder'])
         self.run_client = self.cm.get_client('run')
         self.runs_collection = self.run_client['run'].get_collection('runs_new')
         self.refresh_run_doc()
@@ -159,7 +159,7 @@ class MongoBase:
         return int(x * self.sample_duration)
 
 
-class MongoDBReadUntriggered(plugin.InputPlugin, MongoBase):
+class EventbuilderDBReadUntriggered(plugin.InputPlugin, EventbuilderBase):
 
     """Read pulse times from MongoDB, pass them to the trigger,
     and send off EventProxy's for MongoDBReadUntriggeredFiller.
@@ -168,7 +168,7 @@ class MongoDBReadUntriggered(plugin.InputPlugin, MongoBase):
     latest_subcollection = 0           # Last subcollection that was found to contain some data, last time we checked
 
     def startup(self):
-        MongoBase.startup(self)
+        EventbuilderBase.startup(self)
         self.detector = self.config['detector']
         self.max_query_workers = self.config['max_query_workers']
         self.last_pulse_time = 0  # time (in pax units, i.e. ns) at which the pulse which starts last in the run stops
@@ -450,7 +450,7 @@ class MongoDBReadUntriggered(plugin.InputPlugin, MongoBase):
         self.log.info("Event building complete. Trigger information: %s" % trigger_end_info)
 
 
-class MongoDBReadUntriggeredFiller(plugin.TransformPlugin, MongoBase):
+class EventbuilderDBReadUntriggeredFiller(plugin.TransformPlugin, EventbuilderBase):
 
     """Read pulse data into event ranges provided by trigger MongoDBReadUntriggered.
     This is a separate plugin, since reading the raw pulse data is the expensive operation we want to parallelize.
@@ -458,7 +458,7 @@ class MongoDBReadUntriggeredFiller(plugin.TransformPlugin, MongoBase):
     do_input_check = False
 
     def startup(self):
-        MongoBase.startup(self)
+        EventbuilderBase.startup(self)
         self.ignored_channels = []
         self.max_pulses_per_event = self.config.get('max_pulses_per_event', float('inf'))
         self.high_energy_prescale = self.config.get('high_energy_prescale', 0.1)
@@ -568,7 +568,7 @@ class MongoDBReadUntriggeredFiller(plugin.TransformPlugin, MongoBase):
         return event
 
 
-class MongoDBClearUntriggered(plugin.TransformPlugin, MongoBase):
+class EventbuilderDBClearUntriggered(plugin.TransformPlugin, EventbuilderBase):
     """Clears data whose events have been built from MongoDB>
     Will do NOTHING unless delete_data = True in config.
     This must run as part of the output group, so it gets the events in order.
@@ -588,7 +588,7 @@ class MongoDBClearUntriggered(plugin.TransformPlugin, MongoBase):
     last_subcollection_not_yet_deleted = 0
 
     def startup(self):
-        MongoBase.startup(self)
+        EventbuilderBase.startup(self)
         self.executor = ThreadPoolExecutor(max_workers=self.config['max_query_workers'])
         if not self.config['delete_data']:
             self.log.info("Will NOT rescue acquisition monitor pulses, need delete_data enabled for this")
@@ -747,3 +747,4 @@ def get_pulses(client_maker_config, input_info, collection_name, query, host, ge
             areas = np.zeros(len(times), dtype=np.float64)
 
     return times, modules, channels, areas
+
