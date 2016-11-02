@@ -26,7 +26,7 @@ class Model(object):
       - dump as dictionary and JSON
     """
 
-    def __init__(self, kwargs_dict=None, do_it_fast=False, **kwargs):
+    def __init__(self, kwargs_dict=None, do_it_fast=False, fields_to_ignore=None, **kwargs):
         if do_it_fast:
             # Speed is critical! Forget about any syntax sugar, just set the attributes from kwargs
             for k, v in kwargs.items():
@@ -39,9 +39,15 @@ class Model(object):
         for field_name in list_field_info:
             object.__setattr__(self, field_name, [])
 
+        if fields_to_ignore is None:
+            fields_to_ignore = []
+
         # Initialize all attributes from kwargs and kwargs_dict
         kwargs.update(kwargs_dict or {})
         for k, v in kwargs.items():
+            if k in fields_to_ignore:
+                continue
+
             if k in list_field_info:
                 # User gave a value to initialize a list field. Hopefully an iterable!
                 # Let's check if the types are correct
@@ -53,7 +59,7 @@ class Model(object):
                         temp_list.append(el)
                     elif isinstance(el, dict):
                         # Dicts are fine too, we can use them to init the desired type
-                        temp_list.append(desired_type(**el))
+                        temp_list.append(desired_type(fields_to_ignore=fields_to_ignore, **el))
                     else:
                         raise ValueError("Attempt to initialize list field %s with type %s, "
                                          "but you promised type %s in class declaration." % (k,
@@ -67,7 +73,7 @@ class Model(object):
                 if type(default_value) == np.ndarray:
                     if isinstance(v, np.ndarray):
                         pass
-                    elif isinstance(v, bytes):
+                    elif isinstance(v, (str, bytes)):
                         # Numpy arrays can be also initialized from a 'string' of bytes...
                         v = np.fromstring(v, dtype=default_value.dtype)
                     elif hasattr(v, '__iter__'):
@@ -77,7 +83,7 @@ class Model(object):
                         raise ValueError("Can't initialize field %s: "
                                          "don't know how to make a numpy array from a %s" % (k, type(v)))
                 elif isinstance(default_value, Model):
-                    v = default_value.__class__(**v)
+                    v = default_value.__class__(fields_to_ignore=fields_to_ignore, **v)
 
                 setattr(self, k, v)
 
