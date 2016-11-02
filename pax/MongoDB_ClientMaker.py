@@ -18,15 +18,22 @@ class ClientMaker:
     """
     def __init__(self, config):
         self.log = logging.getLogger('Mongo client maker')
-        if self.config.get('mongomock'):
+        self.uri = config.get('uri', None)
+
+        if config.get('mongomock'):
             # We only have to create Mock Mongodb objects
-            return
-        if 'password' not in config:
-            config['password'] = os.environ.get('MONGO_PASSWORD')
-            if not config['password']:
-                raise ValueError("Please provide the mongo password in the environment variable MONGO_PASSWORD")
+            self.mock = True
+
+        else:
+            self.mock = False
+            if 'password' not in config:
+                config['password'] = os.environ.get('MONGO_PASSWORD')
+                if not config['password']:
+                    raise ValueError("Please provide the mongo password in the environment variable MONGO_PASSWORD")
+
         # Select only relevant config options, so we can just pass this to .format later.
-        self.config = {k: config[k] for k in ('user', 'password', 'host', 'port')}
+        self.config = {k: config.get(k) for k in ('user', 'password', 'host', 'port')}
+
 
     def get_client(self, database_name=None, uri=None, monary=False, host=None, **kwargs):
         """Get a Mongoclient. Returns Mongo database object.
@@ -41,8 +48,13 @@ class ClientMaker:
         full_uri_format = 'mongodb://{user}:{password}@{host}:{port}/{database}'
 
         if uri is None:
-            # We must construct the entire URI from the settings
-            uri = full_uri_format.format(database=database_name, **self.config)
+            if self.uri:
+                # Someone already gave an uri in the config, how nice of them
+                uri = self.uri
+            else:
+                # We must construct the entire URI from the settings
+                uri = full_uri_format.format(database=database_name, **self.config)
+
         else:
             # A URI was given. We expect it to NOT include user and password:
             result = parse_passwordless_uri(uri)
@@ -58,7 +70,7 @@ class ClientMaker:
                 # Some other URI was provided. Just try it and hope for the best
                 pass
 
-        if self.config.get('mongomock'):
+        if self.mock:
             self.log.debug("Connecting to fake Mongo with uri %s" % uri)
             if monary:
                 raise NotImplementedError("Cannot mock monary")
@@ -72,6 +84,7 @@ class ClientMaker:
 
         else:
             self.log.debug("Connecting to Mongo using uri %s" % uri)
+            print("\n\n\n%s\n\n\n" % uri)
             client = pymongo.MongoClient(uri, **kwargs)
             client.admin.command('ping')        # raises pymongo.errors.ConnectionFailure on failure
             self.log.debug("Successfully pinged client")

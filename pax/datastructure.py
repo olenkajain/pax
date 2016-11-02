@@ -782,6 +782,18 @@ class Event(StrictModel):
 
         return peaks
 
+    def _normalize_record_arrays(self):
+        """Replaces structured array fields in event with lists of ordinary objects"""
+        object.__setattr__(self, 'trigger_signals', recarray_to_modellist(self.trigger_signals, TriggerSignal))
+        for p in self.peaks:
+            object.__setattr__(p, 'hits', recarray_to_modellist(p.hits, Hit))
+
+
+def recarray_to_modellist(recarray, model_class):
+    """Convert a record arrayrecarray to a list of instaces of model_class"""
+    return [model_class(**{k: h[k] for k in recarray.dtype.names})
+            for h in recarray]
+
 
 # An event proxy object which can hold arbitrary data
 # but still has an event_number attribute
