@@ -204,7 +204,7 @@ def main():
             log.fatal("Caught known exception, aborting this run (not clearing queue).")
             log.fatal(str(type(e)) + ": " + str(e))
 
-            if not args.secret_mode:
+            if not args.secret_mode and args.detector == 'tpc':
                 mark_run_errored(run_doc, runs)
                 stop_acquisition(clientmaker)
                 communicate_alert(clientmaker, e, log, run_doc, priority=2)
