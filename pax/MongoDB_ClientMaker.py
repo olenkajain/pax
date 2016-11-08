@@ -83,7 +83,6 @@ class ClientMaker:
 
         else:
             self.log.debug("Connecting to Mongo using uri %s" % uri)
-            print("\n\n\n%s\n\n\n" % uri)
             client = pymongo.MongoClient(uri, **kwargs)
             client.admin.command('ping')        # raises pymongo.errors.ConnectionFailure on failure
             self.log.debug("Successfully pinged client")
