@@ -72,13 +72,18 @@ class Model(object):
                 default_value = getattr(self, k)
                 if type(default_value) == np.ndarray:
                     if isinstance(v, np.ndarray):
+                        # It's already a numpy array, nothing to do
                         pass
                     elif isinstance(v, (str, bytes)):
                         # Numpy arrays can be also initialized from a 'string' of bytes...
                         v = np.fromstring(v, dtype=default_value.dtype)
                     elif hasattr(v, '__iter__'):
                         # ... or an iterable
-                        v = np.array(v, dtype=default_value.dtype)
+                        if default_value.dtype.fields is not None:
+                            # We've got to make a structured array out of list of dicts
+                            v = np.array([tuple(d.values()) for d in v], dtype=default_value.dtype)
+                        else:
+                            v = np.array(v, dtype=default_value.dtype)
                     else:
                         raise ValueError("Can't initialize field %s: "
                                          "don't know how to make a numpy array from a %s" % (k, type(v)))

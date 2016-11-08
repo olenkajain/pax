@@ -782,8 +782,11 @@ class Event(StrictModel):
 
         return peaks
 
-    def _normalize_record_arrays(self):
-        """Replaces structured array fields in event with lists of ordinary objects"""
+    def normalize_record_arrays(self):
+        """Replaces structured array fields in event with lists of ordinary pax objects"""
+        if isinstance(self.trigger_signals, list):
+            # Already did the normalization.
+            return
         object.__setattr__(self, 'trigger_signals', recarray_to_modellist(self.trigger_signals, TriggerSignal))
         for p in self.peaks:
             object.__setattr__(p, 'hits', recarray_to_modellist(p.hits, Hit))

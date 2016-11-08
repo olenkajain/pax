@@ -34,7 +34,6 @@ class ClientMaker:
         # Select only relevant config options, so we can just pass this to .format later.
         self.config = {k: config.get(k) for k in ('user', 'password', 'host', 'port')}
 
-
     def get_client(self, database_name=None, uri=None, monary=False, host=None, **kwargs):
         """Get a Mongoclient. Returns Mongo database object.
         If you provide a mongodb connection string uri, we will insert user & password into it,

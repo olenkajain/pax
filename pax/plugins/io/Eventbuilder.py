@@ -747,4 +747,3 @@ def get_pulses(client_maker_config, input_info, collection_name, query, host, ge
             areas = np.zeros(len(times), dtype=np.float64)
 
     return times, modules, channels, areas
-

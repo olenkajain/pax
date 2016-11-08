@@ -59,6 +59,7 @@ class EncodeROOTClass(plugin.TransformPlugin):
         self.class_code = None
 
     def transform_event(self, event):
+        event.normalize_record_arrays()
         if self.class_code is None:
             # Generate and load the pax event class code
             # Only master (in standalone mode) and processing_0 (in multiprocessing mode) are allowed to compile the lib
@@ -83,6 +84,7 @@ class EncodeROOTClass(plugin.TransformPlugin):
         instance python object
         Returns nothing: modifies root_objetc in place
         """
+
         obj_name = python_object.__class__.__name__
         fields_to_ignore = self.config['fields_to_ignore']
         list_field_info = python_object.get_list_field_info()
@@ -94,14 +96,7 @@ class EncodeROOTClass(plugin.TransformPlugin):
             elif isinstance(field_value, list) or field_name in self.config['structured_array_fields']:
                 # Collection field -- recursively initialize collection elements
                 if field_name in self.config['structured_array_fields']:
-                    # Convert the entries from numpy structured array to ordinary pax data models
                     element_model_name = self.config['structured_array_fields'][field_name]
-                    pax_class = getattr(pax.datastructure, element_model_name)
-                    pax_object_list = []
-                    for h in field_value:
-                        pax_object_list.append(pax_class(**{k: h[k] for k in field_value.dtype.names}))
-                    field_value = pax_object_list
-
                 else:
                     element_model_name = list_field_info[field_name].__name__
 
