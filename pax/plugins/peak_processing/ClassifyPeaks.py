@@ -1,4 +1,35 @@
 from pax import plugin, units
+import numpy as np
+
+# Parameters for classification function
+switch1=30
+switch2=150
+slope1=0.25
+slope2=0.05
+slope3=0.07
+offset=0.1
+
+                  
+# S1 height cut
+def s1_height(s1area):
+    x = s1area
+    y =  ((x-offset)*slope1)*(x<switch1) + ((x>=switch1)&(x<switch2))*((switch1-offset)*slope1+slope2*(x-switch1)) + (x>switch2)*((x-switch2)*slope3+((switch1-offset)*slope1+slope2*(switch2-switch1)))
+    return y
+
+# S1 width cut
+def s1_width(s1area):
+    widthmax=100
+    widthmin=20
+    return widthmin + (widthmax-widthmin)* (1.0/(1+np.exp(-(s1area-60)/60))) 
+    
+# Qualify cut for S1 based on height and width
+def peak_classification(area,width,height):
+    if((width<=s1_width(area)) & (area>1.0) & (height>=s1_height(area))):
+        return 's1'
+    elif(area>3.5):
+        return 's2'
+    else:
+        return 'unknown'
 
 
 class AdHocClassification1T(plugin.TransformPlugin):
@@ -12,19 +43,9 @@ class AdHocClassification1T(plugin.TransformPlugin):
 
             area = peak.area
             width = peak.range_area_decile[5]
+            height = peak.height
 
-            if width > 0.1 * area**3:
-                peak.type = 'unknown'
-
-            elif width < 50:
-                peak.type = 's1'
-
-            else:
-                if width > 3.5e2 / area**0.1 or width > 1.5 * area:
-                    peak.type = 's2'
-                else:
-                    peak.type = 's1'
-
+            peak.type = peak_classification(area,width,height)
         return event
 
 
