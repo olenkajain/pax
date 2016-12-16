@@ -39,7 +39,6 @@ class BasicProperties(plugin.TransformPlugin):
             peak.n_saturated_samples = np.sum(peak.n_saturated_per_channel)
             peak.n_saturated_channels = len(np.where(peak.n_saturated_per_channel)[0])
             peak.n_contributing_channels = len(peak.contributing_channels)
-            peak.mean_amplitude_to_noise /= peak.area
 
             # Compute top fraction
             peak.area_fraction_top = np.sum(peak.area_per_channel[first_top_ch:last_top_ch + 1]) / peak.area
