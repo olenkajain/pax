@@ -58,6 +58,11 @@ class BasicProperties(plugin.TransformPlugin):
                 event.lone_hits_per_channel[channel] += 1
                 peak.lone_hit_channel = channel
 
+            # Store some properties of the largest hit
+            largest_hit_i = np.argmax(hits['area'])
+            peak.largest_hit_area = hits[largest_hit_i]['area']
+            peak.largest_hit_channel = hits[largest_hit_i]['channel']
+
         return event
 
 
