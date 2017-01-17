@@ -179,6 +179,7 @@ class S2SaturationCorrectionByWF(plugin.TransformPlugin):
                     area_pmt_correction_factor[pmtid]=area_data/area_model
                     area_pmt_after_correction[pmtid]=area_nan_saturate*area_pmt_correction_factor[pmtid]
                     # largest non saturated wf id
+                    
                     peak.area_per_channel[pmtid]=area_pmt_after_correction[pmtid]
                 # re_compute the s2 area per channel
                 peak.area=np.sum(peak.area_per_channel)
