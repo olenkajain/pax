@@ -72,7 +72,8 @@ class S2SaturationCorrection(plugin.TransformPlugin):
 
 
 class S2SaturationCorrectionByWF(plugin.TransformPlugin):
-    """Compute S2 saturation(x,y,pmtpattern) area correction
+    """
+        Compute S2 saturation area correction based on WF model derived in data
     """
     def transform_event(self, event):
         # Getting the pulses to construct a WF
