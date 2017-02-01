@@ -155,7 +155,7 @@ class S2SaturationCorrectionByWF(plugin.TransformPlugin):
                 max_sample = np.argmax(wf_sum_nan_saturate)  # sample sample at maximum
                 height = wf_sum_nan_saturate[max_sample]
                 # Calculating peak edge thresholds.
-                peak_threshold_left = np.min(0.01*height, adc_thresholds)
+                peak_threshold_left = np.minimum(0.01*height, adc_thresholds)
                 peak_threshold_right = 0.02*height
 
                 # search for more precise peak left/right edges
