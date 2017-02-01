@@ -82,13 +82,13 @@ class S2SaturationCorrectionByWF(plugin.TransformPlugin):
         p_id = np.array([pid for pid in range(0, len(pulses))])
         pulses_pd = pd.DataFrame({"p_id": p_id, "p_left": p_left, "p_right": p_right, "p_channel": p_channel})
 #        pulses_pd=pulses_pd[(pulses_pd["p_left"] <= end_sample) & (pulses_pd["p_right"] >= start_sample)]
-        print('total number of pulses:', len(pulses_pd))
+        # print('total number of pulses:', len(pulses_pd))
         dt = event.sample_duration  # ns per sample
 
         for peak in event.peaks:
             # only analize saturated peaks
             if((peak.n_saturated_channels > 0) & (peak.area > 10000.) & (peak.n_contributing_channels >= 30)):
-                print('peak type:', peak.type)
+                # print('peak type:', peak.type)
                 start_sample = peak.left
                 end_sample = peak.right
 
