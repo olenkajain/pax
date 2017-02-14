@@ -4,6 +4,37 @@ History
 -------
 
 ------------------
+6.3.2 (2017-02-13)
+------------------
+* Fix (r,z) correction bug (#498)
+* Neural network update (#495)
+
+------------------
+6.3.1 (2017-02-09)
+------------------
+* Fix crash due to edge case due to negative samples in hits (#490)
+* Remove AWS support (#489)
+
+------------------
+6.3.0 (2017-02-08)
+------------------
+* Hitfinder upgrade to accomodate long-tailed pe-pulses (#479)
+* r-z position correction from field simulation (#482)
+* Pulse-based desaturation correction (#480, #484)
+* New S1(x,y,z) correction map (#488) and QE rescaling fix
+* S2(x,y) correction (#487)
+* Realistic photoelectron pulse model (#478)
+* Peak property cleanup (#485)
+* Pickle output for plotting (#481)
+* Plugin to apply software prescale retroactively (#486)
+
+------------------
+6.2.1 (2017-01-11)
+------------------
+* Fax: first realistic noise and ZLE thresholds (#471)
+* Fax: first realistic PMT after-pulse configuration (#475)
+
+------------------
 6.2.0 (2016-12-20)
 ------------------
 * Low-energy classification update, new peak properties (#467)
