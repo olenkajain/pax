@@ -579,8 +579,9 @@ class MongoDBReadUntriggeredFiller(plugin.TransformPlugin, MongoBase):
 
 
 class MongoDBClearUntriggered(plugin.TransformPlugin, MongoBase):
-    """Clears data whose events have been built from MongoDB>
-    Will do NOTHING unless delete_data = True in config.
+    """Clears data whose events have been built from MongoDB,
+    rescuing acquisition monitor pulses to a separate file first
+
     This must run as part of the output group, so it gets the events in order.
 
     If split_collections:
@@ -590,7 +591,6 @@ class MongoDBClearUntriggered(plugin.TransformPlugin, MongoBase):
     Else (single collection mode):
         Keeps track of which time is safe to delete, then deletes data from the collection in batches.
         At shutdown, drop the collection
-
     """
     do_input_check = False
     do_output_check = False
@@ -600,15 +600,24 @@ class MongoDBClearUntriggered(plugin.TransformPlugin, MongoBase):
     def startup(self):
         MongoBase.startup(self)
         self.executor = ThreadPoolExecutor(max_workers=self.config['max_query_workers'])
-        if not self.config['delete_data']:
-            self.log.info("Will NOT rescue acquisition monitor pulses, need delete_data enabled for this")
-            return
+
+        # Should we actually delete data, or just rescue the acquie
+        self.actually_delete = self.config.get('delete_data', False)
+        if self.actually_delete:
+            self.log.info("Data will be DELETED from the Mongo database after it is acquired!")
+        else:
+            self.log.info("Data will REMAIN in the Mongo database.")
+
         aqm_file_path = self.config.get('acquisition_monitor_file_path')
         if aqm_file_path is None:
-            self.log.info("Will NOT rescue acquisition monitor pulses!")
+            self.log.info("No acquisition monitor data file path given -- will NOT rescue acquisition monitor pulses!")
+            self.aqm_output_handle = None
+        elif 'sum_wv' not in self.config['channels_in_detector']:
+            self.log.warning("Acquisition monitor path specified, "
+                             "but your detector doesn't have an acquisition monitor?")
             self.aqm_output_handle = None
         else:
-            # Get the acquisition monitor module from the pmts dictionary in the config
+            # Get the acquisition monitor module number from the pmts dictionary in the config
             # It's a bit bad we've hardcoded 'sum_wv' as detector name here...
             some_ch_from_aqm = self.config['channels_in_detector']['sum_wv'][0]
             self.aqm_module = self.config['pmts'][some_ch_from_aqm]['digitizer']['module']
@@ -619,9 +628,6 @@ class MongoDBClearUntriggered(plugin.TransformPlugin, MongoBase):
         self.already_rescued_collections = []
 
     def transform_event(self, event_proxy):
-        if not self.config['delete_data']:
-            return event_proxy
-
         time_since_start = event_proxy.data['stop_time'] - self.time_of_run_start
         if self.split_collections:
             coll_number = self.subcollection_with_time(time_since_start)
@@ -644,31 +650,33 @@ class MongoDBClearUntriggered(plugin.TransformPlugin, MongoBase):
         return event_proxy
 
     def shutdown(self):
-        if self.config['delete_data']:
+        # Wait for any slow drops to complete
+        self.log.info("Waiting for slow collection drops/rescues to complete...")
+        self.executor.shutdown()
+        self.log.info("Collection drops/rescues should be complete. Checking for remaining collections.")
 
-            # Wait for any slow drops to complete
-            self.log.info("Waiting for slow collection drops to complete...")
-            self.executor.shutdown()
-            self.log.info("Collection drops should be complete. Checking for remaining collections.")
+        pulses_in_remaining_collections = defaultdict(int)
+        for db in self.dbs:
+            for coll_name in db.collection_names():
+                if not coll_name.startswith(self.run_doc['name']):
+                    continue
+                if coll_name in self.already_rescued_collections and not self.actually_delete:
+                    # Of course these collections are still there, don't count them as 'remaining'
+                    continue
+                pulses_in_remaining_collections[coll_name] += db[coll_name].count()
 
-            pulses_in_remaining_collections = defaultdict(int)
-            for db in self.dbs:
-                for coll_name in db.collection_names():
-                    if not coll_name.startswith(self.run_doc['name']):
-                        continue
-                    pulses_in_remaining_collections[coll_name] += db[coll_name].count()
+        if len(pulses_in_remaining_collections):
+            self.log.info("Leftover collections with pulse counts: %s. Clearing/rescuing these now." % (
+                              str(pulses_in_remaining_collections)))
 
-            if len(pulses_in_remaining_collections):
-                self.log.info("Remaining collections with pulse counts: %s. Clearing these now." % (
-                                  str(pulses_in_remaining_collections)))
+            for colname in pulses_in_remaining_collections.keys():
+                self.drop_collection_named(colname)
+            self.log.info("Completed.")
 
-                for colname in pulses_in_remaining_collections.keys():
-                    self.drop_collection_named(colname)
-                self.log.info("Completed.")
+        else:
+            self.log.info("All collections have already been cleaned, great.")
 
-            else:
-                self.log.info("All collections have already been cleaned, great.")
-
+        if self.actually_delete:
             # Update the run doc to remove the 'untriggered' entry
             # since we just deleted the last of the untriggered data
             self.refresh_run_doc()
@@ -705,12 +713,13 @@ class MongoDBClearUntriggered(plugin.TransformPlugin, MongoBase):
 
     def delete_pulses(self, collection, start_mongo_time, stop_mongo_time):
         """Deletes all pulses in collection between start_mongo_time (inclusive) and stop_mongo_time (exclusive),
-        both in mongo time units (not pax units!).
+        both in mongo time units (not pax units!). Rescues acquisition monitor pulses just before deleting.
         """
         query = {'time': {'$gte': start_mongo_time,
                           '$lt': stop_mongo_time}}
         self.rescue_acquisition_monitor_pulses(collection, query)
-        collection.delete_many(query)
+        if self.actually_delete:
+            collection.delete_many(query)
 
     def drop_collection_named(self, collection_name, executor=None):
         """Drop the collection named collection_name from db, rescueing acquisition monitor pulses first.
@@ -725,7 +734,9 @@ class MongoDBClearUntriggered(plugin.TransformPlugin, MongoBase):
                 self.already_rescued_collections.append(collection_name)
                 self.rescue_acquisition_monitor_pulses(self.aqm_db[collection_name])
             else:
-                self.log.warning("Duplicated call to drop collection %s!" % collection_name)
+                self.log.warning("Duplicated call to rescue/delete collection %s!" % collection_name)
+        if not self.actually_delete:
+            return
         for db in self.dbs:
             if executor is None:
                 db.drop_collection(collection_name)
