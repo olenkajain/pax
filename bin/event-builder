@@ -29,6 +29,7 @@ STATUS_FIELD_NAME = 'trigger.status'
 TRIGGERED_DATA_HOSTNAME = 'xe1t-datamanager'
 
 # global used for runs-db interaction (needed in several functions)
+clientmaker = None
 clientmaker_config = None
 run_client = None
 run_db = None
@@ -41,7 +42,7 @@ def get_hostname():
 
 
 def connect_to_mongo():
-    global run_client, run_db, runs, pipeline_status_collection
+    global clientmaker, run_client, run_db, runs, pipeline_status_collection
     clientmaker = ClientMaker(config=clientmaker_config)
     run_client = clientmaker.get_client('run', autoreconnect=True)
     run_db = run_client['run']
@@ -70,9 +71,9 @@ def require_live_runs_db():
 
 
 def main():
-    global clientmaker_config
     """Start running the event builder
     """
+    global clientmaker_config
     args = get_command_line_arguments()
     log = setup_logging(loglevel=args.log.upper())
 
@@ -87,7 +88,9 @@ def main():
             print("\nFine, Exiting event builder...\n")
             exit()
     if args.secret_mode and not (args.run or args.run_name):
-        raise RuntimeError("Secret mode doesn't support wait-for-runs-mode (too lazy right now)")
+        raise NotImplementedError("Secret mode doesn't support wait-for-runs-mode (too lazy right now)")
+    if args.secret_mode and args.deleter:
+        raise NotImplementedError("Deleter mode doesn't support secret mode (would probably be a bad idea)")
 
     # Connect to MongoDB
     clientmaker_config = {k: eval('args.%s' % k, dict(args=args))
@@ -95,12 +98,17 @@ def main():
     connect_to_mongo()
 
     # Build the query used to search for runs
+    if args.deleter:
+        status_in, status_pending, status_done = 'deleteme', 'deleting', 'deleted'
+    else:
+        status_in, status_pending, status_done = 'waiting_to_be_processed', 'staging', 'trigger_done'
+
     if args.run_name:
         run_query = {'name': args.run_name}
     elif args.run is not None:
         run_query = {'number': args.run}
     else:
-        run_query = {STATUS_FIELD_NAME: 'waiting_to_be_processed',
+        run_query = {STATUS_FIELD_NAME: status_in,
                      'data.type': 'untriggered'}
     run_query['detector'] = args.detector
     log.info("Starting run search with query %s" % run_query)
@@ -116,25 +124,16 @@ def main():
     while 1:
         require_live_runs_db()
 
+        ##
+        # Get a run to process
+        ##
         if not args.secret_mode:
-            run_doc = runs.find_one_and_update(run_query, {'$set': {STATUS_FIELD_NAME: 'staging'}})
+            # Get a run and immediately set the pending status
+            run_doc = runs.find_one_and_update(run_query, {'$set': {STATUS_FIELD_NAME: status_pending}})
 
-            if run_doc is not None:
-                data_info_entry = {'type': 'raw',
-                                   'host': TRIGGERED_DATA_HOSTNAME,
-                                   'status': 'transferring',
-                                   'location': os.path.join('/data/xenon/raw',
-                                                            run_doc['name']+detector_suffix),
-                                   'creation_time': datetime.datetime.utcnow(),
-                                   'checksum': None}
-                runs.update({'_id': run_doc['_id']},
-                            {'$push': {'data': data_info_entry}})
         else:
+            # Just get a run, don't update the status to pending
             run_doc = runs.find_one(run_query)
-            if run_doc is None:
-                raise ValueError("Mongodb returned None instead of run document!")
-            data_info_entry = dict(location=os.path.join('.',
-                                                         run_doc['name']+detector_suffix))
 
         if run_doc is None:
             if args.wait <= 0:
@@ -147,6 +146,61 @@ def main():
                                                    'working_on_run': False})
             time.sleep(args.wait)
             continue
+
+        if args.secret_mode:
+            # Create a fake data entry
+            data_info_entry = dict(location=os.path.join('.', run_doc['name'] + detector_suffix))
+
+        elif not args.deleter:
+            # Add a new data entry to the data list in the run doc
+            data_info_entry = {'type': 'raw',
+                               'host': TRIGGERED_DATA_HOSTNAME,
+                               'status': 'transferring',
+                               'location': os.path.join('/data/xenon/raw',
+                                                        run_doc['name'] + detector_suffix),
+                               'creation_time': datetime.datetime.utcnow(),
+                               'checksum': None}
+            runs.update({'_id': run_doc['_id']},
+                        {'$push': {'data': data_info_entry}})
+
+        else:
+            from pax.plugins.io.MongoDB import connect_to_eb_dbs
+            input_info, hosts, dbs, input_collections = connect_to_eb_dbs(
+                clientmaker=clientmaker,
+                run_doc=run_doc,
+                detector=args.detector,
+                split_collections=run_doc['reader']['ini'].get('rotating_collections', False))
+
+            # Give some warning
+            print("I'm going to delete the data for run %d (%s)."
+                  "If you don't want this you have 1 minute to hit CTRL-C..." % (run_doc['number'], run_doc['name']))
+            for t in range(6):
+                print("%d seconds left...\n" % (60 - 10 * t))
+                time.sleep(10)
+
+            print("Starting deletion")
+            # Delete all collections from this run
+            for db in dbs:
+                for coll_name in db.collection_names():
+                    if not coll_name.startswith(run_doc['name']):
+                        continue
+                    db.drop_collection(coll_name)
+
+            print("Removing untriggered data entry")
+            # First refresh the run doc, perhaps new data entries got added while we were waiting for deletion
+            # (e.g. some transfer started somewhere)
+            run_doc = runs.find_one({'_id': run_doc['_id']})
+            runs.update_one({'_id': run_doc['_id']},
+                            {'$set': {'data': [d for d in run_doc['data']
+                                               if d['type'] != 'untriggered']}})
+
+            runs.find_one_and_update({'_id': run_doc['_id']},
+                                     {'$set': {STATUS_FIELD_NAME: status_done}})
+
+            # Continue searching for runs (rest of code is for normal eventbuilder, we never want to reach that)
+            continue
+
+        assert not args.deleter
 
         # Build configuration for pax. Settings priority:
         #   First priority: command line args
@@ -275,6 +329,10 @@ def main():
             else:
                 log.fatal('No eventbuilder logfile to copy out?')
 
+        # No crash occurred, update the status to say we're good
+        runs.find_one_and_update({'_id': run_doc['_id']},
+                                 {'$set': {STATUS_FIELD_NAME: status_done}})
+
         # If we're trying to build a single run, don't try again to find it
         if args.run_name or args.run:
             break
@@ -349,6 +407,10 @@ def get_command_line_arguments():
     """Return the parsed arguments from the command line (from ArgumentParser.parse_args())
     """
     parser = argparse.ArgumentParser(description="Build XENON1T events from the DAQ.")
+
+    # Deleter mode
+    parser.add_argument('--deleter', default=False,
+                        help='Instead of building events, look for runs that can be deleted and clear them.')
 
     # Multiprocessing
     mp_group = parser.add_argument_group(title='Multiprocessing')
