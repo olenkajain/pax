@@ -69,3 +69,67 @@ class S2SaturationCorrection(plugin.TransformPlugin):
                                "(%f, %f) consists of only zeros!" % (xy.x, xy.y))
 
         return event
+
+class S2LinearityCorrection(plugin.TransformPlugin):
+"""Inside a peak, the peak area is simply a sum of all hit area. This introduce a bias due to zero length suppression. In this plugin,
+we consider to add all pulse values inside a peak to calculate the peak area, to test how much it affect the S2 linearity. 
+"""
+    def transform_event(self, event):
+        # Getting the pulses to construct a WF
+        pulses = event.pulses
+        p_left = np.array([p.left for p in pulses])
+        p_right = np.array([p.right for p in pulses])
+        p_channel = np.array([p.channel for p in pulses])
+        p_baseline = np.array([p.baseline for p in pulses])
+        p_id=np.array([pid for pid in range(0,len(pulses))])
+        pulses_pd=pd.DataFrame({"p_id":p_id,"p_left":p_left,"p_right":p_right,"p_channel":p_channel, "p_baseline" : p_baseline})
+
+        dt = event.sample_duration # ns per sample
+        for peak in event.peaks if peak.type == 's2' :
+            start_sample=peak.left
+            end_sample=peak.right
+
+            nPmts=248
+            nPmtsTop = 127
+            wf_raw = np.zeros((nPmts, end_sample - start_sample))
+
+            # select pulses inside this peak window
+            pulses_pd = pulses_pd[(pulses_pd["p_left"] <= end_sample) & (pulses_pd["p_right"] >= start_sample)]
+            # Start constructing the WFs
+
+            for pmtid in range(0, nPmts):
+                index_all = pulses_pd[(pulses_pd.p_channel == pmtid)].p_id.values  # all pulses in this WF
+                adc_conversion = dsputils.adc_to_pe(self.config, channel=pmtid)
+
+                for index in index_all:
+                    p = pulses[int(index)]
+                    p_left = p.left
+                    p_right = p.right
+                    raw_data_adc = p.raw_data.astype(np.float16)
+                    raw_data_adc = p.baseline - raw_data_adc
+                    for sample in range(start_sample, end_sample):
+                        if (p_left <= sample and p_right >= sample):
+                            adc = raw_data_adc[sample - p.left]
+                            wf_raw[pmtid, sample - start_sample] = adc * adc_conversion
+
+
+                # Area per pmt w/o saturation correction
+                area_pmt_after_correction = np.zeros(nPmts)
+                areatop = 0.0
+
+                for pmtid in range(0, nPmts):
+                    for sample in range(start_sample, end_sample):
+                        area_pmt_after_correction[pmtid] += wf_raw[pmtid, sample - start_sample]
+                    peak.area_per_channel[pmtid] = area_pmt_after_correction[pmtid]
+
+                    # Re compute area fraction on top
+                    if (pmtid < nPmtsTop):
+                        areatop += peak.area_per_channel[pmtid]
+                print('area before correction: ', peak.area)
+                peak.area = np.sum(peak.area_per_channel)
+                print('area after correction: ', peak.area)
+
+                if (peak.area > 0):
+                    peak.area_fraction_top = areatop / peak.area
+
+return event
