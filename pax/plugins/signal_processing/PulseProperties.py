@@ -74,17 +74,8 @@ def compute_pulse_properties(w, baseline_samples):
     Does not modify w. Does not assume anything about inversion of w!!
     """
     # Compute the baseline before and after the self-trigger
-    baseline = 0.0
-    baseline_samples = min(baseline_samples, len(w))
-    for x in w[:baseline_samples]:
-        baseline += x
-    baseline /= baseline_samples
-
-    baseline_after = 0.0
-    for x in w[-baseline_samples:]:
-        baseline_after += x
-    baseline_after /= baseline_samples
-
+    baseline = np.median(w[:baseline_samples])
+    baseline_after = np.median(w[-baseline_samples:])
     baseline_increase = baseline_after - baseline
 
     # Now compute mean, noise, and min
