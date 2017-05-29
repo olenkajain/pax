@@ -75,6 +75,7 @@ def compute_pulse_properties(w, baseline_samples):
     """
     # Compute the baseline before and after the self-trigger
     baseline = np.median(w[:baseline_samples])
+    #print('BaseLine Comparisons ', 'mean : ', np.mean(w[:baseline_samples]), 'median: ', np.median(w[:baseline_samples]))
     baseline_after = np.median(w[-baseline_samples:])
     baseline_increase = baseline_after - baseline
 
