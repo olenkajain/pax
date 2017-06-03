@@ -58,7 +58,7 @@ class InterpolatingMap(object):
     """
     data_field_names = ['timestamp', 'description', 'coordinate_system', 'name', 'irregular']
 
-    def __init__(self, filename, **kwargs):
+    def __init__(self, filename):
         self.log = logging.getLogger('InterpolatingMap')
         self.log.debug('Loading JSON map %s' % filename)
 
