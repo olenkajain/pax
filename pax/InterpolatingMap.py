@@ -96,7 +96,7 @@ class InterpolatingMap(object):
         position_names = ['x', 'y', 'z']
         return self.get_value(*[getattr(position, q) for q in position_names[:self.dimensions]], map_name=map_name)
 
-    def get_value(self, *coordinates, map_name='map'):
+    def get_value(self, map_name='map', *coordinates):
         """Returns the value of the map at the position given by coordinates
         Keyword arguments:
           - map_name: Name of the map to use. By default: 'map'.
