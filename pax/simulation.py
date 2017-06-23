@@ -237,7 +237,6 @@ class Simulator(object):
         # Shuffle all timings in the array, so channel 1 doesn't always get the first photon
         np.random.shuffle(photon_timings)
 
-    
         # Get the photon counts per channel
         hitp = self.distribute_photons(len(photon_timings), x, y, z)
 
@@ -298,7 +297,7 @@ class Simulator(object):
 
         event = datastructure.Event(n_channels=self.config['n_channels'],
                                     start_time=start_time,
-                                    stop_time=int(start_time + 1000 * units.us),
+                                    stop_time=start_time + int(max_time + 2 * self.config['event_padding']),
                                     sample_duration=self.config['sample_duration'])
         # Ensure the event length is even (else it cannot be written to XED)
         if event.length() % 2 != 0:
@@ -314,20 +313,17 @@ class Simulator(object):
 
         # Setup things for real noise simulation
         if self.config['real_noise_sample_size']:
-            noise_sample_len = self.config['real_noise_sample_size']
-            available_noise_samples = self.noise_data.shape[1] // noise_sample_len
-            needed_noise_samples = int(math.ceil(pulse_length / noise_sample_len))
             choice=np.random.normal(self.noise_data,.05*sqrt(abs(self.noise_data)))
             noise_to_add=irfft(choice)
 
-            noise_sample_mode = self.config.get('real_noise_sample_mode', 'incoherent')
-            if noise_sample_mode == 'coherent':
+            #noise_sample_mode = self.config.get('real_noise_sample_mode', 'incoherent')
+            #if noise_sample_mode == 'coherent':
                 # Choose a single set of noise sample numbers for the event
-                chosen_noise_sample_numbers = np.random.randint(0,
-                                                                available_noise_samples - 1,
-                                                                needed_noise_samples)
+                #chosen_noise_sample_numbers = np.random.randint(0,
+                                                                #available_noise_samples - 1,
+                                                                #needed_noise_samples)
 
-                roll_number = np.random.randint(noise_sample_len)
+                #roll_number = np.random.randint(noise_sample_len)
 
         # Build waveform channel by channel
         for channel, photon_detection_times in self.arrival_times_per_channel.items():
@@ -472,8 +468,8 @@ class Simulator(object):
                 #if noise_sample_mode != 'coherent':
                     # For each channel, choose different noise sample numbers
                     #chosen_noise_sample_numbers = np.random.randint(0,
-                                                                    available_noise_samples - 1,
-                                                                    needed_noise_samples)
+                                                                    #available_noise_samples - 1,
+                                                                    #needed_noise_samples)
 
                     #roll_number = np.random.randint(noise_sample_len)
 
@@ -481,7 +477,10 @@ class Simulator(object):
                 # Have to use a listcomp here, unless you know a way to select multiple slices in numpy?
                 #  -- yeah making an index list with np.arange would work, but honestly??
 
-                real_noise = noise_to_add[channel-self.channel_offset]
+                noise_row = noise_to_add[channel - self.channel_offset]
+                noise_to_add_full = [noise_row[i % len(noise_row)] for i in range(pulse_length)]
+                noise_to_add_full = np.asarray(noise_to_add_full)
+
 
                 # Roll the noise samples by a fraction of the sample size,
                 # to avoid same artifacts falling at the same point every time
@@ -491,9 +490,9 @@ class Simulator(object):
                 noise_amplitude = self.config.get('adjust_noise_amplitude', {}).get(str(channel), 1)
                 if noise_amplitude != 1:
                     # Determine a rough baseline for the noise, then adjust towards it
-                    baseline = np.mean(real_noise[:min(len(real_noise), 50)])
-                    real_noise = baseline + noise_amplitude * (real_noise - baseline)
-                adc_wave += real_noise[start_index:pulse_length+start_index]
+                    baseline = np.mean(noise_to_add_full[:min(len(noise_to_add_full), 50)])
+                    noise_to_add_full = baseline + noise_amplitude * (noise_to_add_full - baseline)
+                adc_wave += noise_to_add_full[start_index:pulse_length+start_index]
 
             else:
                 # If you don't want to superpose onto real noise,
