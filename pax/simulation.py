@@ -14,6 +14,8 @@ import numpy as np
 import multihist    # noqa   # Not explicitly used, but pickle of gas gap warping map is in this format
 from scipy import stats
 from scipy.interpolate import interp1d
+import matplotlib
+import matplotlib.pyplot as plt
 
 from pax import units, utils, datastructure
 from pax.PatternFitter import PatternFitter
@@ -298,8 +300,8 @@ class Simulator(object):
         if self.config['real_noise_sample_size']:
             choice=np.random.normal(self.noise_data,.05*np.sqrt(abs(self.noise_data)))
             noise_to_add=irfft(choice)
-            print(noise_to_add[132])
-
+            plt.plot(np.arange(len(noise_to_add[132]),noise_to_add[132]))
+            plt.show()
 
 
         event = datastructure.Event(n_channels=self.config['n_channels'],
