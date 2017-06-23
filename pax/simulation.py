@@ -313,7 +313,7 @@ class Simulator(object):
 
         # Setup things for real noise simulation
         if self.config['real_noise_sample_size']:
-            choice=np.random.normal(self.noise_data,.05*sqrt(abs(self.noise_data)))
+            choice=np.random.normal(self.noise_data,.05*np.sqrt(abs(self.noise_data)))
             noise_to_add=irfft(choice)
 
             #noise_sample_mode = self.config.get('real_noise_sample_mode', 'incoherent')
