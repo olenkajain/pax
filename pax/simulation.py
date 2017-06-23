@@ -297,7 +297,7 @@ class Simulator(object):
 
         event = datastructure.Event(n_channels=self.config['n_channels'],
                                     start_time=start_time,
-                                    stop_time=start_time + int(max_time + 2 * self.config['event_padding']),
+                                    stop_time=int(start_time + 1000 *  units.us)#start_time + int(max_time + 2 * self.config['event_padding']),
                                     sample_duration=self.config['sample_duration'])
         # Ensure the event length is even (else it cannot be written to XED)
         if event.length() % 2 != 0:
