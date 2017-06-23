@@ -500,7 +500,7 @@ class Simulator(object):
                 adc_wave += self.config['digitizer_reference_baseline']
 
             # Digitizers have finite number of bits per channel, so clip the signal.
-            adc_wave = np.clip(adc_wave, 0, 2 ** (self.config['digitizer_bits']))
+            adc_wave = np.clip(adc_wave, -(2 ** (self.config['digitizer_bits'])), 2 ** (self.config['digitizer_bits']))
 
             event.pulses.append(datastructure.Pulse(
                 channel=channel,
