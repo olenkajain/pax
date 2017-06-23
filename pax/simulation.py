@@ -295,6 +295,13 @@ class Simulator(object):
         else:
             max_time = np.concatenate(list(self.arrival_times_per_channel.values())).max()
 
+        if self.config['real_noise_sample_size']:
+            choice=np.random.normal(self.noise_data,.05*np.sqrt(abs(self.noise_data)))
+            noise_to_add=irfft(choice)
+            print(noise_to_add[132])
+
+
+
         event = datastructure.Event(n_channels=self.config['n_channels'],
                                     start_time=start_time,
                                     stop_time=int(start_time + 1000 *  units.us),#start_time + int(max_time + 2 * self.config['event_padding']),
@@ -313,9 +320,6 @@ class Simulator(object):
         print(pulse_length)
 
         # Setup things for real noise simulation
-        if self.config['real_noise_sample_size']:
-            choice=np.random.normal(self.noise_data,.05*np.sqrt(abs(self.noise_data)))
-            noise_to_add=irfft(choice)
 
             #noise_sample_mode = self.config.get('real_noise_sample_mode', 'incoherent')
             #if noise_sample_mode == 'coherent':
