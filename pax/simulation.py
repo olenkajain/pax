@@ -300,7 +300,7 @@ class Simulator(object):
         if self.config['real_noise_sample_size']:
             choice=np.random.normal(self.noise_data,.05*np.sqrt(abs(self.noise_data)))
             noise_to_add=irfft(choice)
-            plt.plot(np.arange(len(noise_to_add[132]),noise_to_add[132]))
+            plt.plot(np.arange(100000),noise_to_add[132])
             plt.show()
 
 
