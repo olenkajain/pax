@@ -9,7 +9,7 @@ import math
 import time
 import pickle
 from functools import partial
-from scipy.fftpack import irfft, rfft,rfftfreq
+from scipy.fftpack import irfft
 import numpy as np
 import multihist    # noqa   # Not explicitly used, but pickle of gas gap warping map is in this format
 from scipy import stats
@@ -298,11 +298,10 @@ class Simulator(object):
             max_time = np.concatenate(list(self.arrival_times_per_channel.values())).max()
 
         if self.config['real_noise_sample_size']:
+            print(self.noise_data[132][10:50],'before')
             choice=np.random.normal(self.noise_data,.05*np.sqrt(abs(self.noise_data)))
             noise_to_add=irfft(choice)
-            plt.plot(np.arange(10000),noise_to_add[132])
-            plt.show()
-
+            print(noise_to_add[132][10:50], 'after')
 
         event = datastructure.Event(n_channels=self.config['n_channels'],
                                     start_time=start_time,
